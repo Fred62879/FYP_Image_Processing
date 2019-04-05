@@ -1,2 +1,0 @@
-inname = '20190305_lightconditions/light1/t2l1_20190305_07_bench_330lux_25min_AMP2.jpg'
-orig, gray, chipct, chip, warp, restr = process(inname, 100, 0.1, 0)
