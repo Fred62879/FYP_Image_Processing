@@ -1,0 +1,78 @@
+# extract values of spots & panels (areas excluding spots of the chip) Mar 13 2019
+# para: spot -
+#	patch -
+# 	fold - sample image display fold
+# 	para - chip design
+#
+# output: spotDt - list of rw*cl sublists each containing values of corresponding spot
+#	  surDt - list of rw*cl sublists each ... panel areas surrounding corresponding spot
+#
+
+def intenExtract(spot, patch, fold, para):
+
+	# display resized image
+	def show(img, fold):
+		rsz = cv2.resize(img, None, fx = fold, fy = fold)
+		cv2.imshow('img',rsz)
+
+
+	# restore image from data list
+	# para: dt - list of data
+	# output: restored image
+	#
+	def draw(dt, rw, cl):
+		for i in range(0, rw):
+			b = np.array(dt[i*cl])
+			for j in range(1, cl):
+				b = np.hstack((b, np.array(dt[i*cl + j])))
+			if (i == 0):
+				a = b
+			else:
+				a = np.vstack((a, b))
+		return a
+
+	# exclude 0 from collected data
+	# para: dt - list of data for either 42 spots or sur blocks
+	# output: list of data excluding zero
+	#
+	def noZero(dt):
+		res = []
+		for i in range(0, len(dt)): # for each spot/sur
+			cur = dt[i]
+			cur = cur[(cur != 0).any(axis = (2))]
+			res.append(cur)
+		return res
+
+	# extract intensity values from target area
+	# para: SAME
+	#
+	# output:
+	#
+	# NOTE: image slicing automically cease if exceed image size, e.g. a[412:450,412:450]
+	# 	gives only a 8x8 slice
+	def inten(img, para):
+		res = []
+		rw, cl, rst, cst, hd, vd, hdd, vdd, r, dr = para
+		for i in range(0, rw):
+			for j in range(0, cl):
+				x = rst + j*hd + (2*j+1)*r
+				y = cst + i*vd + (2*i+1)*r
+				a = y + vdd
+				#if (y + vdd >= merge.shape[0]):
+				#	a = merge.shape[0]
+				res.append(img[y - vdd: a, x - hdd: x + hdd])
+		return res
+
+	# extract data from img, excluding zero
+	def dataExtract(img, para):
+		rw, cl = para[0:2]
+		dt = inten(img, para) # list of spot value
+		show(draw(dt, rw, cl), 1)  # correctness check: draw image from data
+		if cv2.waitKey(0) & 0xFF == ord('a'):
+			return
+		return noZero(dt)        # exclude 0 values in the data list
+	
+	# process
+	spotDt = dataExtract(spot, para)
+	patchDt = dataExtract(patch, para)
+	return spotDt, patchDt

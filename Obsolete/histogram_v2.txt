@@ -1,0 +1,61 @@
+# enable direct input of data, updated on Mar 27 2019
+#
+#
+
+def histogram(dt, isdt, ch, ns, save, name, show, acc):
+	
+	# one-time smooth for given hist
+	def smooth(hist):
+		new = np.zeros_like(hist)
+		new[0] = hist[0]
+		new[len(hist) - 1] = hist[len(hist) - 1]
+		for i in range(1, len(hist) - 2):
+			new[i] = (hist[i - 1] + hist[i] + hist[i + 1]) / 3
+		return new
+
+	# recursively smooth for n times
+	def recur(hist, n):
+		res = np.copy(hist)
+		for i in range(0, n):
+			res = smooth(res)
+		return res
+
+	# calculate accumulated histogram
+	def accu(hist):
+		res = np.copy(hist)
+		for i in range(1, len(hist)):
+			res[i] = res[i] + res[i - 1]
+		return res
+
+	# draw histogram using hist, save to given dir or display
+	def drawHist(hist, name, save, show):
+		plt.plot(hist)
+		plt.xlim([0,256])
+		if (save == 1):
+			plt.savefig(name)
+		if (show == 1):
+			plt.show()
+		plt.close()
+
+	# draw hist for img and smooth for selected channels
+	# para: img - img for histogramming
+	#	dt - whether img is processed data
+	#	ch - channels to draw the histogram
+	#	ns - # of times to smooth
+	#	save - whether save histogram or not
+	#	name - if save == 1, then dir to be saved
+	#	show - whether display histogram or not
+	#
+	def plotHist(dt, isdt, ch, ns, save, name, show, acc):
+		if (isdt == 0):
+			x, y, z = dt.shape
+			dt = np.reshape(dt, (x*y, z))
+		hist,bins = np.histogram(dt[:, ch],256,[0,256]) # 'ch' channel
+		nhist = recur(hist, ns)
+		if (acc == 1):
+			nhist = accu(nhist)
+		drawHist(nhist, name, save, show)
+		return nhist
+
+	return plotHist(dt, isdt, ch, ns, save, name, show, acc)
+	

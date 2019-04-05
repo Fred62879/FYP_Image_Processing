@@ -1,0 +1,85 @@
+# deciding the most representative vals of the given data set - generated on Dec 9
+# para: dt - original data for either spot/surround
+#	nbins - number of bins to generate the 3D histogram
+# 	id - index of spot/surround to be evaluated
+#
+# output: cx - mode value for channel x
+#
+
+def repreVal(dt, nbins, id):
+
+	# check whether a is beyond [lo,hi]
+	def beyond(a, lo, hi):
+		return (a < lo or a > hi)		
+
+	# create new dt useing only pixels from the most dense area - update on Dec 12
+	# para: dt - numpy array of data
+	#	id - != -1 only when used on original dt, where 1 of the spots/surs are selected
+	#	sz - expected number of pixels included in new dt
+	#	a/c/e - lower bound for R/G/B values
+	#	b/d/f - upper...
+	#
+	# output: res - new array contain only values of pixels for the most dense area
+	#
+	def newDT(dt, id, sz, a, b, c, d, e, f):
+		res = []
+		st = 0
+		if (id != -1):
+			dt = dt[id]
+		for i in range(0, len(dt)):
+			if (beyond(dt[i][0], a, b) or beyond(dt[i][1], c, d) or beyond(dt[i][2], e, f)):
+				continue
+			res.append(dt[i])
+		return np.array(res)
+
+	# use 3D histogram to locate area with mode color value
+	# para: dt - numpy array of data
+	#	nbins - number of bins to create 3D histogram
+	#	id - SAME
+	#
+	# output: (x,x) - lower and upper bound for the specific channel
+	#	  max - number of pixels within range defined by (x,x)..
+	#
+	def mode(dt, nbins, id):
+		if (id != -1):
+			dt = dt[id]
+		H, edges = np.histogramdd(dt, bins = (nbins, nbins, nbins))
+		x = 0
+		y = 0
+		z = 0
+		max = 0
+		for i in range(0, nbins):
+			for j in range(0, nbins):
+				for k in range(0, nbins):
+					if (H[i,j,k] == 0 or H[i,j,k] < max):
+						continue
+					x = i
+					y = j
+					z = k
+					max = H[i,j,k]
+		return (edges[0][x], edges[0][x+1]), (edges[1][y], edges[1][y+1]), (edges[2][z], edges[2][z+1]), max
+	
+	# narrow down the range to one value
+	# para: SAME as above
+	#
+	# output: narrowest range for each channel
+	#		
+	def normVal(a, b, c, d, e, f, res):
+		(a,b),(c,d),(e,f), max = mode(res, 10, -1)
+		if ((b-a) <= 1 and (c-d) <= 1 and (e-f) <= 1):
+			return (a,b),(c,d),(e,f)
+		res = newDT(res, -1, max, a, b, c, d, e, f)
+		return normVal(a, b, c, d, e, f, res)
+		
+
+	# operation on original dt
+	(a,b),(c,d),(e,f), max = mode(dt, nbins, id)
+	res = newDT(dt, id, max, a, b, c, d, e, f)
+	
+	# narrow down from range to one value
+	(a,b),(c,d),(e,f) = normVal(a, b, c, d, e, f, res)
+	c1 = (int) ((a+b) // 2)
+	c2 = (int) ((c+d) // 2)
+	c3 = (int) ((e+f) // 2)
+	
+	return c1, c2, c3

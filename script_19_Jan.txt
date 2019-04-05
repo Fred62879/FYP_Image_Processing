@@ -1,0 +1,443 @@
+import cv2, numpy as np, os, math
+from matplotlib import pyplot as plt
+
+def show(img, fold):
+	rsz = cv2.resize(img, None, fx = fold, fy = fold)
+	cv2.imshow('img',rsz)
+
+def intshow(i):
+	plt.imshow(i)
+	plt.show()
+
+
+**** Jan 1 ****
+os.chdir('wd/2018-19FYP/chip_v2/20181113')
+	def readin(name, thre, i, fold):
+		orig = cv2.imread(name)
+		gray = cv2.cvtColor(orig, cv2.COLOR_BGR2GRAY)
+		ret, thresh = cv2.threshold(gray, thre, 255, 0)
+		show(thresh, fold)
+		if cv2.waitKey(0) & 0xFF == ord('a'):
+			return
+		tinv = cv2.bitwise_not(thresh)
+
+		image, contours, hierarchy = cv2.findContours(tinv,cv2.RETR_TREE,cv2.CHAIN_APPROX_SIMPLE)
+		cst = sorted(contours, key = lambda x: cv2.contourArea(x))
+		while(1==1):
+			ct = np.zeros_like(gray)
+			targetCt = cst[len(cst) - i]
+			ct = cv2.drawContours(ct, [targetCt], -1, (255, 255, 255), -1)
+			show(ct, fold)		
+			if cv2.waitKey(0) & 0xFF == ord('l'):     # if current contour larger than chip
+				i = i + 1
+			elif cv2.waitKey(0) & 0xFF == ord('s'):   # if current contour smaller than chip
+				i = i - 1
+			else:
+				break
+		return targetCt, gray, orig, ct
+	
+// test for other img
+chipct1, gray1, orig1, chip1 = readin('3.jpg', 100, 2, .4)
+copy = np.copy(orig1)
+blr, norm = preProcess(copy, 10, 10, .4)
+
+// 
+blr, norm = preProcess(copy, 60, 10, .4)
+gray = cv2.cvtColor(blr, cv2.COLOR_BGR2GRAY)
+ret, thresh = cv2.threshold(gray, 200, 255, 0)
+
+ret, thresh = cv2.threshold(orig1, 200, 255, 0)
+inv = cv2.bitwise_not(orig1)
+merge_inv = cv2.add(inv, thresh)
+merge = cv2.bitwise_not(merge_inv)
+
+
+**** Jan 2 ****
+// REFER TO Nov 18 to restore lost border
+hsv = cv2.cvtColor(orig1, cv2.COLOR_BGR2HSV)
+lab = cv2.cvtColor(orig1, cv2.COLOR_BGR2LAB)
+h, s, v = cv2.split(hsv)
+
+def restore(gray, thre):
+	inv = cv2.bitwise_not(gray)
+	ret, thresh = cv2.threshold(h, thre, 255, 0)
+	show(thresh, 0.5)
+	if cv2.waitKey(0) & 0xFF == ord('a'):
+		return
+	m = cv2.add(inv, thresh)
+	show(m, 0.5)
+	return m
+
+m = restore(gray, 120)
+res = cv2.bitwise_not(m)
+show(res, 0.5)
+
+// read in
+def readin(res):
+	ret, thresh = cv2.threshold(res, 100, 255, 0)
+	show(thresh, 0.5)
+	if cv2.waitKey(0) & 0xFF == ord('a'):
+			return
+
+	tinv = cv2.bitwise_not(thresh)
+	image, contours, hierarchy = cv2.findContours(tinv,cv2.RETR_TREE,cv2.CHAIN_APPROX_SIMPLE)
+	cst = sorted(contours, key = lambda x: cv2.contourArea(x))
+	c1 = cst[len(cst) - 2]
+	mask1 = np.zeros_like(res)
+	mask1 = cv2.drawContours(mask1, [c1], -1, (255, 255, 255), -1)
+	show(mask1, 0.5)
+	return mask1
+
+mask = readin(res)
+
+// divide image into blocks and fill each with local max
+
+def blur(imgCp, ninv, nbins, fill):
+		rw, cl, ch = orig.shape
+		for i in range(0, ninv):
+			for j in range(0, ninv):
+				vd = (rw // (2*ninv))
+				hd = (cl // (2*ninv))
+				x = (2*j + 1) * hd
+				y = (2*i + 1) * vd
+				dt = decreaseDim(imgCp[y-vd:y+vd, x-hd:x+hd])
+				R,G,B = repreVal(dt, nbins, -1)
+				if (fill == 0):
+					return R,G,B
+				imgCp[y-vd:y+vd, x-hd:x+hd] = [R,G,B]
+		return imgCp
+
+
+**** Jan 3 ****
+// improve image processing
+I) iterate thru areas detected until find the chip
+ i) 
+ii)
+
+II) remove glares
+
+
+// I-i
+os.chdir('wd/2018-19FYP/chip_v2/20181119')
+orig = cv2.imread('20181119_AMP1_9_30min.jpg')
+gray = cv2.cvtColor(orig, cv2.COLOR_BGR2GRAY)
+ret, thresh = cv2.threshold(gray, 100, 255, 0)
+tinv = cv2.bitwise_not(thresh)
+image, contours, hierarchy = cv2.findContours(tinv,cv2.RETR_TREE,cv2.CHAIN_APPROX_SIMPLE)
+cst = sorted(contours, key = lambda x: cv2.contourArea(x))
+
+ct = np.zeros_like(gray)
+targetCt = cst[len(cst) - 2]
+ct = cv2.drawContours(ct, [targetCt], -1, (255, 255, 255), -1)
+show(ct, fold)
+
+a = arrmk(cr)
+cv2.polylines(hold, [a], True, (255,255,255))
+
+
+**** Jan 8 ****
+readin('20181119_AMP1_9_30min.jpg', 100, 1, 0.1)
+
+os.chdir('wd/2018-19FYP/chip_v2/20181119')
+orig = cv2.imread('20181119_AMP1_9_30min.jpg')
+gray = cv2.cvtColor(orig, cv2.COLOR_BGR2GRAY)
+sortedContour = findCountour(gray, 100, .1) 	
+i = n - 1
+outer = sortedContour[i]
+
+ct = np.zeros_like(gray)
+a1, hold = apprf(outer, 0.05, np.zeros_like(gray))
+zoomIn = black(ct, outer, .1, gray)
+
+sortedContour2 = findCountour(zoomIn, 100, .1)
+inner = sortedContour[len(sortedContour2) - 2]
+img = np.zeros_like(gray)
+img = cv2.drawContours(img, [inner], -1, (255, 255, 255), -1)
+show(img, fold)
+a2, hold2 = apprf(inner, 0.05, np.zeros_like(gray))
+
+
+**** Jan 9 ****
+// original read in method
+chipct1, gray1, orig1, chip1 = readin('20181119_AMP1_9_30min.jpg', 100, 1, .1)
+chipct1, gray1, orig1, chip1 = readin('20181119_AMP1_22_30min.jpg', 100, 1, .1)
+
+// new process method
+orig, gray, chipct, chip, warp = process('20181119_AMP1_9_30min.jpg', 100, 0.1)
+orig, gray, chipct, chip, warp = process('20181119_AMP1_22_30min.jpg', 100, 0.1)
+
+
+**** Jan 12 ****
+// II- remove glares - normalize L channel
+os.chdir('wd/2018-19FYP/chip_v2/20181113')
+orig = cv2.imread('3.jpg')
+gray = cv2.cvtColor(orig, cv2.COLOR_BGR2GRAY)
+lab = cv2.cvtColor(orig, cv2.COLOR_BGR2LAB)
+
+// update repreVal
+dt = decreaseDim(lab)[:,0]
+H, edges = np.histogram(dt, bins = 2)
+a, b, max = mode(dt, 2, -1)
+res = newDT(dt, -1, max, a, b)
+H, edges = np.histogram(res, bins = 2)
+a, b, max = mode(res, 2, -1)
+
+res = newDT(res, -1, max, a, b)
+H, edges = np.histogram(res, bins = 2)
+a, b, max = mode(res, 2, -1)
+
+c1 = repreVal(dt, 2, -1)
+
+// update preprocess
+copy = np.copy(orig)
+blr = blur(copy, 6, 2)
+
+blr, norm = preProcess(orig, lab, 10, 2, .4)
+
+
+**** Jan 13 ****
+// hist counting error
+r, c, cl = lab.shape
+count = 0
+for i in range(0, r):
+	for j in range(0, c):
+		if (lab[i,j,0] < 50):
+			count = count + 1
+
+count = 0
+for i in range(0, len(dt)):
+	if (dt[i] < 50):
+		count = count + 1
+
+// no need to decrease dimension
+H, edges = np.histogram(lab, bins = 2)
+
+c1 = repreVal(dt, 2, -1)
+c1 = repreVal(dt, 10, -1)
+
+// update repreVal
+dt = decreaseDim(lab)
+H, edges = np.histogram(dt, bins = 10)
+a, b, min = mini(dt, 10, -1)
+
+res = newDT(dt, -1, min, a, b)
+H, edges = np.histogram(res, bins = 10)
+a, b, min = mini(res, 2, -1)
+
+// update preprocess
+copy = np.copy(lab)
+blr = blur(copy, 10, 3)
+norm = normalize(copy, c1, blr, 10, .4)
+
+a = cv2.cvtColor(norm, cv2.COLOR_LAB2BGR)
+
+
+**** Jan 14 ****
+blr, norm = preProcess(orig, lab, 10, 2, .4)
+
+// bright area extract and direct manipulate
+test = lab[200:400, 500:750]
+dt = decreaseDim(test)
+c1 = repreVal(dt, 10, -1, 1) // first version-find max
+
+	def bound(dt):
+		max = 0
+		min = float('inf')
+		for i in range(0, len(dt)):
+			if (dt[i] > max):
+				max = dt[i]
+			elif(dt[i] < min):
+				min = dt[i]
+		return max, min
+
+max, min = bound(dt)
+factor = min/c1
+test[:,:,0] = test[:,:,0]*factor
+a = cv2.cvtColor(test, cv2.COLOR_LAB2BGR)
+
+// prev method 1
+def t(a, v):
+	rw, cl, ch = a.shape
+	for i in range(0, rw):
+		for j in range(0, cl):
+			if (a[i, j][0] >= 190):
+				a[i, j][0] = v
+	a = cv2.cvtColor(a, cv2.COLOR_LAB2BGR)
+	show(a, 0.5)
+
+t(lab, 20)
+
+// 2
+hsv = cv2.cvtColor(orig, cv2.COLOR_BGR2HSV)
+h, s, v = cv2.split(hsv)
+l, a, b = cv2.split(lab)
+def restore(channel, gray, thre):
+	inv = cv2.bitwise_not(gray)
+	ret, thresh = cv2.threshold(channel, thre, 255, 0)
+	show(thresh, 0.5)
+	if cv2.waitKey(0) & 0xFF == ord('a'):
+		return
+	cv2.imwrite('thresh.jpg',thresh)
+	m = cv2.add(inv, thresh)
+	show(m, 0.5)
+	if cv2.waitKey(0) & 0xFF == ord('a'):
+		return
+	cv2.imwrite('m.jpg', m)
+	res = cv2.bitwise_not(m)
+	show(res, .1)
+	cv2.imwrite('res.jpg', res)
+	return res
+
+m = restore(h, gray, 120)
+m = restore(l, gray, 190)
+m = restore(v, gray, 200)
+
+ret, thresh = cv2.threshold(m, 100, 255, 0)	
+show(thresh, 0.5)
+tinv = cv2.bitwise_not(thresh)
+image, contours, hierarchy = cv2.findContours(tinv,cv2.RETR_TREE,cv2.CHAIN_APPROX_SIMPLE)
+cst = sorted(contours, key = lambda x: cv2.contourArea(x))
+c1 = cst[len(cst) - 1]
+mask1 = np.zeros_like(gray)
+mask1 = cv2.drawContours(mask1, [c1], -1, (255, 255, 255), -1)
+show(mask1, 0.5)
+
+
+**** Jan 15 ****
+// H channel threshold, decided by preprocess
+dt = decreaseDim(hsv)
+H, edges = np.histogram(dt, bins = 2)
+c1 = repreVal(dt, 2, -1, 1)
+c1 = repreVal(dt, 10, -1, 1)
+
+m = restore(h, gray, 100)
+
+
+**** Jan 19 ****
+// solution from the web
+img = cv2.imread("glares.png")
+gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+img_hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
+mask = ((img_hsv > np.array([0, 0, 230])).astype(np.float32) + (img_hsv > np.array([0, 0, 230])).astype(np.float32) * (-0.5) + 0.5)
+img_partly_darken = cv2.cvtColor(mask * img_hsv, cv2.COLOR_HSV2BGR)
+plt.imshow(cv2.cvtColor(img_partly_darken, cv2.COLOR_BGR2RGB))
+plt.show()
+show(img_partly_darken, 1)
+
+
+# Then, you can just pick out the green ones:
+green_mask = img[:, :, 1] > img[:, :, 2]    # value of green channel > that of red channel
+# Here is a trick, I use color space convertion to boardcast one channel to three channels
+green_mask = (green_mask.astype(np.uint8)) * 255 # pixels be either 0 / 255
+show(green_mask, 1)
+green_mask = cv2.cvtColor(green_mask, cv2.COLOR_GRAY2BGR)
+green3_mask = (green_mask > 0).astype(np.uint8) * 255
+img_green = cv2.bitwise_and(green3_mask, img)
+plt.imshow(cv2.cvtColor(img_green, cv2.COLOR_BGR2RGB))
+plt.show()
+show(img_green, 1)
+
+
+**** Sample run for ALL current functions ****
+**** Jan 19 ****
+// III update spot value resprent method
+os.chdir('wd/2018-19FYP/chip_v2/20181119')
+orig, gray, chipct, chip, warp, restr = process('20181119_AMP1_9_30min.jpg', 100, 0.1)
+hsv = cv2.cvtColor(restr, cv2.COLOR_BGR2HSV)
+
+// update spotEx()
+maskR, spotR  = roughProcess(hsv, 1, 7, 6, 20, 27, 40, 30, 15, 15)
+h, s, v = cv2.split(spotR)
+maskF = adjust(maskR, s, spotR, 20, 7, 6, 20, 27, 40, 30, 15, 20)
+				 rw cl rst cst  hd  vd   r  dr  th
+spot, sur = spotEx(hsv, restr, 1, 7, 6, 20, 27, 40, 30, 15, 20, 20, 1)
+spot, sur = spotEx(hsv, restr, 1, 7, 6, 20, 27, 40, 30, 15, 15, 20, 0)
+
+spotDt = inten(spot, 7, 6, 20, 27, 40, 30, 15, 35, 30)		
+			                              rw cl rst cst  hd  vd hdd vdd   r  dr  th
+spot, sur, spotDt, surDt = intenExtract(hsv, restr, 1, 7, 6, 20, 27, 40, 30, 35, 30, 15, 20, 20, 1)
+spot, sur, spotDt, surDt = intenExtract(hsv, restr, 1, 7, 6, 20, 27, 40, 30, 35, 30, 15, 15, 20, 0)
+
+norm = panelConstruct(surdt, norm, 10, 7, 6, 20, 27, 40, 30, 35, 30, 15)				    rw cl rst cst  hd  vd hdd vdd   r  dr
+enh = enhanceGraph(warp1, spotdt, surdt, 10, 7, 6, 20, 27, 40, 30, 35, 30, 15, 20)
+
+
+**** Jan 20 ****
+whole project
+I.   glare processing (not finished)
+II.  chip area locating and extract (further improve)
+III. spot shape adjustment (not finished)
+IV.  lighting adjustment
+V.   spot color abstraction (further improve)
+
+
+**** Jan 21 ****
+// primary task:
+I.  define color range
+II. noramlize to fit color range
+III. allocate spots to different colors
+
+// method 1
+follow web solution previously found
+
+// method 2
+ML - train a classifier to decide color category
+
+
+
+**** Jan 22 ****
+// lighting adjust, RGB
+
+// represent, from inner circle spreading out
+
+// color range definition
+
+// revisit glare process web solution
+
+
+**** Jan 24 ****
+// classify spots based on antibiotics presence info
+	category = 
+
+	# cateogry spots in the given image
+	# para: sl - list of coordinates for each spot of the given sensor cell line 
+	#	cl - list of class info for all spots
+	#	img - 
+	#	others - SAME
+	#
+	# output:
+	#
+	def sensorCtgr(sl, cl, img, rw, cl, rst, cst, hd, vd):
+		for s in range(0, 3):
+			i, j = sl[s];
+			id = i * cl + j
+			x = rst + j*hd + (2*j+1)*r
+			y = cst + i*vd + (2*i+1)*r
+			res.append(img[y - vdd: y + vdd, x - hdd: x + hdd])
+
+
+	def categorizer():
+		
+			
+
+	def analysis():
+		for i in range(1, 10):
+			
+
+**** Jan 29 ****
+// for each chip, processed to yield values for ten sensors
+// nomralization method: unprocessed/self-approach/color constancy/reference chart
+// repre-val: self-approach/mean/mode for each channel of each space
+// spot shape adjustment: with/without
+
+rst = hoffset, cst = voffset, hd = hdist, vd = vdist
+	
+
+
+**** Jan 31 ****
+def histshow(c):
+	plt.hist(c.ravel(),256,[0,256]);
+	plt.show()
+
+r, g, b = cv2.split(warp)
+histshow(r)

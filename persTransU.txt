@@ -1,0 +1,172 @@
+# extract chip area
+# @para chipct: contour for intact chip (inner area)
+#       orig: original image
+#	gray: gray scale image
+#	fold: image display fold
+#       chip: thresholded chip area
+# @output: perspectively transformed chip area
+#
+
+def persTransU(chipct, orig, gray, fold, chip):
+
+	# display resized image
+	def show(img, fold):
+		rsz = cv2.resize(img, None, fx = fold, fy = fold)
+		cv2.imshow('img',rsz)
+
+	# calculate the slope of the line defined by two given points
+	def slope(p1, p2):
+		return (p1[1] - p2[1]) / (p1[0] - p2[0])         
+
+	# calculate the distance between two given points
+	def distance(p1, p2):
+		return np.sqrt(((p1[0] - p2[0])**2) + ((p1[1] - p2[1])**2))
+
+	# accurate division: 
+	def divide(n1, n2):
+		precise = n1 / n2
+		round = n1 // n2
+		if (precise - round > round + 1 - precise):
+			return int(round + 1)
+		return int(round)
+
+	# reorder corner list
+	# para: chipcrj - list of points being corners of the restored chip
+	#	hdcridx - index of the hidden corner
+	#
+	# output: res - clockwise ordered corners starting from the hidden corner 
+	#
+	def transform(chipcrj, hdcridx):
+		res = np.array(([[leng, 0], [leng, leng], [0, leng], [0, 0]]), dtype = 'float32')
+		for i in range(0, 4):
+			res[i] = chipcrj[(i + hdcridx) % 4]
+		return res
+
+
+	# sort points clockwise
+	# para: pts - an array of randomly ordered points which are corners of a convex quadrilateral
+	#
+	# output: clockwise ordered
+	#
+	def order_points(pts):
+		# sort the points based on their x-coordinates
+		xSorted = pts[np.argsort(pts[:, 0]), :]
+ 
+		# grab the left-most and right-most points from the sorted
+		# x-roodinate points
+		leftMost = xSorted[:2, :]
+		p2 = xSorted[2:3,:][0]
+		p3 = xSorted[3:,:][0]
+	 
+		# now, sort the left-most coordinates according to their
+		# y-coordinates so we can grab the top-left and bottom-left
+		# points, respectively
+		leftMost = leftMost[np.argsort(leftMost[:, 1]), :]
+		(tl, bl) = leftMost
+ 	
+		# now that we have the top-left coordinate, use it as an
+		# anchor to calculate the angle between a vertical line
+		# and lines between respestively tl and two left points
+		s2 = slope(tl, p2)
+		s3 = slope(tl, p3)
+		if (s2 < s3):
+			tr = p2
+			br = p3
+		else:
+			tr = p3
+			br = p2
+ 
+		# return the coordinates in top-left, top-right,
+		# bottom-right, and bottom-left order
+		return np.array([tl, tr, br, bl], dtype="float32")		
+
+	# find corner from chip contour
+	# para: chipct - contour of the chip area
+	#	fold - display fold
+	#	thre - threshold to do the contour approximaiton
+	#	hold - a blank/black image same size as gray, used as drawing panel
+	#
+	# output: a - a list of points being corners of chipct
+	#	  hold - a black image sketched with contour defined by a
+	#
+	def apprf(chipct, fold, thre, hold):
+		epsilon = thre * cv2.arcLength(chipct, True)
+		cr = cv2.approxPolyDP(chipct, epsilon, True)  # corners detected for chipct
+		x, y, z = cr.shape
+		a = np.reshape(cr, (x*y, z))		      # change data format of 
+		cv2.polylines(hold, [a], True, (255,255,255)) # draw quadrilateral defined by cr/a
+		show(hold, fold)    #draw contour from found corners
+		return a, hold
+
+
+	# extarct white area in chip that is black in major portion of chip
+	# para: chipmj - a black image where only major chip portion is white
+	#	chip - a black image where whole chip area is white
+	#
+	# output: the rest areas of the chip not counted in the major portion, i.e. the minor portion
+	#	  that is a black image where areas, being white in chip but black in chipmj, are white
+	#
+	def otherHf(chipmj, chip):
+		inv = cv2.bitwise_not(chip)  # chip area is black, other areas are white
+		m = cv2.add(inv, chipmj)     # minor area is black, other areas are white
+		return cv2.bitwise_not(m)
+
+
+	# find corner of major chip and minor chip
+	# para: gray - gray scaled image
+	#	chipct - contour of the chip area
+	#	fold - display fold
+	#	chip - a black image where only areas enclosed by chipct is white
+	#
+	# output: chipcrj - a list of four points being four of the five corners of the chip
+	#	  chipcrr - a list of three points including the absent one from chipcrj with its two adjacencies
+	#
+	def cornerF(gray, chipct, fold, chip):
+		# find corner of major portion of the chip
+		hold = np.zeros_like(gray)
+		chipcrj, hold = apprf(chipct, fold, 0.05, hold)
+		
+		# display the major chip area - white rectangle area defined by chipcrj
+		image, contours, hierarchy = cv2.findContours(hold, cv2.RETR_TREE, cv2.CHAIN_APPROX_NONE)
+		chipmj = np.zeros_like(gray)
+		chipmj = cv2.drawContours(chipmj, [contours[0]], -1, (255, 255, 255), -1)
+		show(chipmj, fold)
+		if cv2.waitKey(0) & 0xFF == ord('a'):
+			return
+
+		# display the rest of the chip
+		ohf = otherHf(chipmj, chip)
+		show(ohf, fold)
+		if cv2.waitKey(0) & 0xFF == ord('a'):
+			return
+
+		# find the minor chip area (a triangle) - largest area among rest of the chip
+		image, contours, hierarchy = cv2.findContours(ohf, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+		c = max(contours, key = cv2.contourArea)
+		chipmr = np.zeros_like(gray)
+		chipmr = cv2.drawContours(chipmr, [c], -1, (255, 255, 255), -1)
+		show(chipmr, fold)
+		if cv2.waitKey(0) & 0xFF == ord('a'):
+			return
+
+		# find corner of minor chip area
+		hold = np.zeros_like(gray)
+		chipcrr, hold = apprf(c, 0.4, 0.01, hold)
+	
+		return chipcrj, chipcrr
+
+	chipcrj, chipcrr = cornerF(gray, chipct, fold, chip) # corner array of the major(4 cors)/minor(3 cors) portion
+	orcrj = order_points(chipcrj)                        # corner of the major portion clockwise ordered
+	hdcr, hdcridx = hideCorner(chipcrj, chipcrr)         # coor of the hidden corner and its index in chipcrj
+	chipcrj[hdcridx] = hdcr				     # replace the daunted corner with the real/hidden one
+	leng = 420					     # randomly given length $$ should be addressed later
+	rect = transform(chipcrj, hdcridx)                   # transform chip corner array, start from hidden corner
+	
+	# perspective transformation
+	dst = np.array(([[leng, 0], [leng, leng], [0, leng], [0, 0]]), dtype = 'float32')
+	M = cv2.getPerspectiveTransform(rect, dst)	     # transformation matrix
+	warped = cv2.warpPerspective(orig, M, (leng, leng))  # transformed chip
+	show(warped, 1)
+	if cv2.waitKey(0) & 0xFF == ord('a'):
+		return
+	return warped

@@ -1,0 +1,588 @@
+import cv2, numpy as np, os, math
+from matplotlib import pyplot as plt
+from scipy import stats
+
+def show(img, fold):
+	rsz = cv2.resize(img, None, fx = fold, fy = fold)
+	cv2.imshow('img',rsz)
+
+def intshow(i):
+	plt.imshow(i)
+	plt.show()
+
+def getPatch(img, i, j, hoffset, voffset, hdist, vdist, hdd, vdd, r):
+	x = hoffset + j*hdist + (2*j+1)*r
+	y = voffset + i*vdist + (2*i+1)*r
+	return np.copy(img[y-vdd: y+vdd, x-hdd: x+hdd])
+
+
+**** Feb 1 ****
+os.chdir('wd/2018-19FYP/chip_v2/20181119')
+orig, gray, chipct, chip, warp, restr = process('20181119_AMP1_9_30min.jpg', 100, 0.1)
+hsv = cv2.cvtColor(restr, cv2.COLOR_BGR2HSV)
+spot, sur = spotEx(hsv, restr, 1, 7, 6, 20, 27, 40, 30, 15, 15, 20, 0)
+
+a = np.array([[[1,2,3],[0,0,0]],[[1,2,0],[2,0,0]]], dtype = 'uint8')
+b = a[(a!=0).any(axis = (2))]
+np.mean(b[:,0])
+np.mean(b, axis = (1))
+np.mean(b, axis = (0)) # correct
+res = stats.mode(b, axis = (0))
+factor = res.mode[0]
+np.median(b, axis = (0))
+
+// test factorCal()
+i = 0
+j = 0
+x = 20 + j*40 + (2*j+1)*15
+y = 27 + i*30 + (2*i+1)*15
+curSur = sur[y-30: y+30, x-35: x+35]
+dt = curSur[(curSur != 0).any(axis = (2))]
+repre = repreVal(dt, 6, -1)
+
+factor = factorCal(curSur, 0, 6)
+factor = factorCal(curSur, 1, 6)
+factor = factorCal(curSur, 2, 6)
+factor = factorCal(curSur, 3, 6)
+
+// test whitePatch()
+warpNorm, spotNorm = whitePatch(warp, spot, sur, 0, 7, 6, 20, 27, 40, 30, 15, 35, 30, 6)
+
+a = np.hstack((spot, spotNorm))
+intshow(a)
+
+
+**** Feb 3 ****
+// multiplication overflow
+a = np.array([100, 200, 250], dtype=np.uint8)
+b = np.array([50, 50, 50], dtype=np.uint8)
+b = 255 - b  # old b is gone shortly after new array is created
+np.putmask(a, b < a, b)  # a temp bool array here, then it's gone
+a += 255 - b  # a temp array here, then it's gone
+a = np.hstack((warp, warpNorm))
+
+
+**** Feb 4 ****
+spot = multiOverflow(np.zeros_like(spot), (spot*factor).astype('uint8'))
+
+// improve multioverflow
+factor = factorCal(curSur, 0, 6)
+
+
+**** Feb 6 ****
+			           light_adjust, repre_val, process, spot, sur, rw, cl, hoffset, voffset, hdist, vdist, r, hdd, vdd, nbins
+cpNorm, spotNorm, dt = lightAdjust(           1,         0,    warp, spot, sur,  7,  6,      20,      27,    40,    30,15,  35,  30,     6)
+a = grayWorld(warp)
+
+
+**** Feb 17 ****
+// for reporting writing
+// crop the whole chip
+orig = cv2.imread('20181119_AMP1_9_30min.jpg')
+gray = cv2.cvtColor(orig, cv2.COLOR_BGR2GRAY)
+sortedContour = findCountour(gray, 100, .1)
+n = len(sortedContour)
+outer = sortedContour[n-1]
+
+epsilon = .05 * cv2.arcLength(outer, True)
+cr = cv2.approxPolyDP(outer, epsilon, True)  # corners detected for chipct
+a = arrmk(cr)		      # change data format of
+a...
+b = np.array([[2245, 1593],[2405, 3054],[670,3010],[829, 1557]], dtype = 'float32')
+hold = np.zeros_like(gray)
+cv2.polylines(hold, [b], True, (255,255,255))
+
+leng = 420
+dst = np.array([[leng, 0], [leng, leng], [0, leng], [0, 0]], dtype = 'float32')
+M = cv2.getPerspectiveTransform(b, dst)
+warped = cv2.warpPerspective(orig, M, (leng, leng))
+
+// overall scheme
+orig, gray, chipct, chip, warp, restr = process('20181119_AMP1_9_30min.jpg', 100, 0.1)
+hsv = cv2.cvtColor(restr, cv2.COLOR_BGR2HSV)
+spot, sur = spotEx(hsv, restr, 1, 7, 6, 20, 27, 40, 30, 15, 15, 20, 0)
+spot, sur, spotDt, surDt = intenExtract(hsv, restr, 1, 7, 6, 20, 27, 40, 30, 35, 30, 15, 15, 20, 0)
+
+rsur, gsur, bsur = cv2.split(surDt)
+
+// function to generate 2D histogram
+// generate data
+a = np,copy(surDt[0])
+b = np.append(a, surDt[1], axis = 0)
+
+	# merge data for all spots/surs of the given chip
+	def mergeSpr(dt):
+		res = np.copy(dt[0])
+		for i in range(1, 42):
+			res = np.append(res, dt[1], axis = 0)
+		return np.array(res)
+
+	csurdt = mergeSpr(surDt)
+	r1 = csurdt[:,0]
+	g1 = csurdt[:,1]
+	b1 = csurdt[:,2]
+
+from matplotlib import colors as colors
+def den(nbins, nbInString, a, b, labela, labelb):
+	plt.hist2d(a, b, bins=nbins, norm=colors.LogNorm())
+	plt.xlabel(labela)
+	plt.ylabel(labelb)
+	plt.xlim([0,255])
+	plt.ylim([0,255])
+	cb = plt.colorbar()
+	cb.set_label('Counts in bin' + ': ' + nbInString)
+	plt.show()
+
+den(30, '30', r1, g1, 'R', 'G')
+den(30, '30', r1, b1, 'R', 'B')
+den(30, '30', b1, g1, 'B', 'G')
+
+	# merge spot/sur data from given list of chips
+	#
+	#
+	def mergeChip(chipsDt):
+		accu = mergeSpr(chipsDt[0])
+		for i in range(1, len(chipsDt)):
+			accu = np.append(accu, mergeSpr(chipsDt[i]), axis = 0)
+		return np.array(accu)
+
+	#
+	#
+	#
+	def all(name):
+		spotAll = []
+		surAll = []
+		for i in range(0, len(name)):
+			orig, gray, chipct, chip, warp, restr = process(name[i], 100, 0.1)
+			hsv = cv2.cvtColor(restr, cv2.COLOR_BGR2HSV)
+			spot, sur, spotDt, surDt = intenExtract(hsv, restr, 1, 7, 6, 20, 27, 40, 30, 35, 30, 15, 15, 20, 0)
+			spotAll.append(spotDt)
+			surAll.append(surDt)
+		spotAll = mergeChip(spotAll)
+		surAll = mergeChip(surAll)
+		# return np.array(surAll) # - 1
+		return spotAll, surAll
+
+	name = ['20181119_AMP1_9_30min.jpg']
+	name = ['20181119_AMP1_9_30min.jpg', '20181119_LB_10_30min.jpg']
+	a = all(name) # - 1
+	res = mergeSpr(a[0])
+	res = np.append(res, mergeSpr(a[1]), axis = 0)
+
+	surAll = all(name)
+
+
+**** Feb 18 ****
+spotAll, surAll = all(name)
+r1, g1, b1 = split(surAll)
+r1, g1, b1 = split(spotAll)
+den(30, '30', r1, g1, 'R', 'G')
+den(30, '30', r1, b1, 'R', 'B')
+den(30, '30', b1, g1, 'B', 'G')
+
+	def split(dt):
+		c1 = dt[:,0]
+		c2 = dt[:,0]
+		c3 = dt[:,0]
+		return c1, c2, c3
+
+// generic for colorspace
+	def all(name, flag):
+		spotAll = []
+		surAll = []
+		for i in range(0, len(name)):
+			orig, gray, chipct, chip, warp, restr = process(name[i], 100, 0.1)
+			hsv = cv2.cvtColor(restr, cv2.COLOR_BGR2HSV)
+			if (flag != 0):
+				restr = cv2.cvtColor(restr, flag)
+			spot, sur, spotDt, surDt = intenExtract(hsv, restr, 1, 7, 6, 20, 27, 40, 30, 35, 30, 15, 15, 20, 0)
+			spotAll.append(spotDt)
+			surAll.append(surDt)
+		spotAll = mergeChip(spotAll)
+		surAll = mergeChip(surAll)
+		# return np.array(surAll) # - 1
+		return spotAll, surAll
+
+spotAllhsv, surAllhsv = all(name, cv2.COLOR_BGR2HSV)
+h1, s1, v1 = split(surAllhsv)
+den(30, '30', h1, s1, 'H', 'S')
+
+spotAlllab, surAlllab = all(name, cv2.COLOR_BGR2LAB)
+l1, a1, b1 = split(surAlllab)
+den(30, '30', a1, b1, 'A', 'B')
+// terminated
+
+// white patch
+process = restr
+double = np.array(process, dtype = 'f')
+
+res = whitePatchClassical(0, process)
+
+
+**** Feb 19 ****
+// shape adjust still needed
+orig, gray, chipct, chip, warp, restr = process('20181119_AMP1_9_30min.jpg', 100, 0.1)
+orig, gray, chipct, chip, warp, restr = process('20181119_LB_10_30min.jpg', 100, 0.1)
+hsv = cv2.cvtColor(restr, cv2.COLOR_BGR2HSV)
+lab = cv2.cvtColor(restr, cv2.COLOR_BGR2LAB)
+spot, sur = spotEx(hsv, restr, 1, 7, 6, 20, 27, 40, 30, 15, 15, 20, 0)
+spot, sur = spotEx(hsv, restr, 1, 7, 6, 20, 27, 40, 30, 15, 20, 20, 1)
+
+// ** improved **
+// find approxmiate value of white (RGB & S)
+	
+	# para: img - either restr or hsv
+	def white(img, choice):
+		maskR = np.zeros_like(img)
+		maskR_inv = maskD(maskR, 1, 7, 6, 20, 27, 40, 30, 15, 15)
+		img_inv = cv2.bitwise_not(img)
+		surR_inv = cv2.add(maskR_inv, img_inv)
+		surR = cv2.bitwise_not(surR_inv)
+
+		x,y,c = surR.shape # prepare data
+		dt = np.reshape(surR, (x*y, c))
+		a = dt[(dt != 0).any(axis = (1))] # remove black pixels
+		m1, m2, m3 = np.mean(dt, axis = 0)
+		if (choice == 0):
+			return m1, m2, m3
+		return m2
+
+	mr, mg, mb = white(restr, 0)
+	s = white(hsv, 1)
+
+surE, spotE = cover(restr, 1, 7, 6, 20, 27, 40, 30, 15, 15)
+surE_hsv = cv2.cvtColor(surE, cv2.COLOR_BGR2LAB)
+mr, mg, mb = white(surE, 0)
+mr, mg, mb = white(spotE, 0)
+
+spot, sur = spotEx(hsv, restr, 1, 7, 6, 20, 27, 40, 30, 15, 20, 3, 1) # version 3
+mask = (spot < np.array([mr, mg, mb])).astype(np.uint8)
+b = mask * spot
+mask = ((spot < np.array([mr, mg, mb])).any(axis = 2)).astype(np.uint8)
+b = mask[:,:,None] * spot
+
+
+**** Feb 20 ****
+// ** shape adjust **
+// adjust spot shape case by case
+i = 0
+j = 1
+j = 5
+rst = 20
+cst = 27
+hd = 40
+vd = 30
+r = 15
+cr = cst + i*vd + (2*i+1)*r
+cc = rst + j*hd + (2*j+1)*r
+hdd = 35
+vdd = 30
+fold = 1
+
+// test
+patch = restr[cr-vdd:cr+vdd, cc-hdd:cc+hdd]
+dr = 15
+surE, spotE = cover(patch, fold, hdd, vdd, dr)
+surE_hsv = cv2.cvtColor(surE, cv2.COLOR_BGR2HSV)
+mr, mg, mb = white(surE, 0)
+ms = white(surE_hsv, 1)
+dr = 25
+// terminated
+
+// test
+res = np.zeros_like(restr)
+res = adjustEachSpot(restr, res, 35, 30, 42, 385, 25, 2, 1, 0) # spot(0,5)
+res = adjustEachSpot(restr, res, 35, 30, 342, 105, 25, 2, 1, 0) # spot(5,1)
+// terminated
+
+	# Adjust the shape of all spots in img
+	# para: 
+	#
+	# output: 
+	#
+	def shapeAdjust(img, rw, cl, rst, cst, hd, vd, hdd, vdd, r, dr, cho, display, rgbt):
+		res = np.zeros_like(img)
+		for i in range(0, rw):          # spot in row i
+			for j in range(0, cl):  #         col j
+				centerRow = cst + i*vd + (2*i+1)*r
+				centerCol = rst + j*hd + (2*j+1)*r
+				res = adjustEachSpot(img, res, hdd, vdd, centerRow, centerCol, dr, cho, display, rgbt)
+				if (display == 1):
+					show(res, 1)
+					if cv2.waitKey(0) & 0xFF == ord('a'):
+						return
+		show(res, 1)
+		if cv2.waitKey(0) & 0xFF == ord('a'):
+			return
+		return res
+
+
+// test                 rw, cl, rst, cst, hd, vd, hdd, vdd, r, dr, cho, display, rgbt
+res = shapeAdjust(restr, 7,  6,  20,  27, 40, 30,  35,  30, 15, 25,  2,       0,   0)
+res_hsv = cv2.cvtColor(res, cv2.COLOR_BGR2HSV)
+// terminated
+
+//
+orig, gray, chipct, chip, warp, restr = process('20181119_LB_10_30min.jpg', 100, 0.1)
+orig, gray, chipct, chip, warp, restr = process('20181119_TET0.1AMP1_14_30min.jpg', 100, 0.1)
+orig, gray, chipct, chip, warp, restr = process('20181119_TET0.25_4_30mi.jpg', 100, 0.1)
+orig, gray, chipct, chip, warp, restr = process('20181119_TET0.1AMP1_7_30min.jpg', 100, 0.1)
+orig, gray, chipct, chip, warp, restr = process('20181119_LB_17_30min.jpg', 100, 0.1)
+
+res = spotEx(restr, 7,  6,  20,  27, 40, 30,  35,  30, 15, 25,  2,       0,   0)
+rgbres = spotEx(restr, 7,  6,  20,  27, 40, 30,  35,  30, 15, 25,  2,       0,   1)
+spot, sur, spotMask, surMask = spotEx(restr, 7, 6, 20, 27, 40, 30, 35, 30, 15, 25, 2, 0, 0)
+
+// ** color constancy **
+	def normalize(img, rw, cl, hoffset, voffset, hdist, vdist, hdd, vdd, r, dr, nbins, chor, chov, choa, chovs, chod):
+		norm = np.copy(img)
+		for i in range(0, rw):          # spot in row i
+			for j in range(0, cl):  #         col j
+				x = hoffset + j*hdist + (2*j+1)*r
+				y = voffset + i*vdist + (2*i+1)*r
+				patch = norm[y-vdd: y+vdd, x-hdd: x+hdd]
+				show(patch, 1)
+				if cv2.waitKey(0) & 0xFF == ord('a'):
+					return
+				curNorm = 0
+				if (choa == 0):
+					whiteReference(patch, hdd, vdd, r, dr, nbins, chor, chov)
+				elif (choa == 1):
+					whitePatch(patch, chovs, chod)
+				# norm[y-vdd: y+vdd, x-hdd: x+hdd] = patch
+
+				show(patch, 1)
+				if cv2.waitKey(0) & 0xFF == ord('a'):
+					return
+
+				show(norm, 1)
+				if cv2.waitKey(0) & 0xFF == ord('a'):
+					return
+		return norm
+// white refernce                                               r  v  a  vs d
+res = normalize(restr, 7, 6, 20, 27, 40, 30, 35, 30, 15, 25, 2, 1, 1, 0, 1, 0)
+nimg = max_white(restr)
+
+
+**** Feb 21 ****
+// white patch
+b = restr.transpose(2, 0, 1)
+H = cv2.calcHist([restr], [0], None, [256], [0, 256])
+a = plt.hist(restr[0].ravel(),256,[0,256]); plt.show()
+
+def count(img, v, c):
+	x, y, z = img.shape
+	count = 0
+	for i in range(0, x):
+		for j in range(0, y):
+				if (img[i][j][c] == v):
+					count = count + 1
+	return count
+
+count(restr, 0, 0)
+np.bincount(b.ravel(), minlength = 256)
+
+// *test
+n = whitePatch(restr, 0, 0)                                     r  v  a  vs d
+res = normalize(restr, 7, 6, 20, 27, 40, 30, 35, 30, 15, 25, 2, 1, 1, 1, 1, 0)
+res = normalize(restr, 7, 6, 20, 27, 40, 30, 35, 30, 15, 25, 2, 1, 1, 1, 0, 0)
+
+// on each patch
+patch = whitePatch(np.copy(p23), 1, 0)
+
+	def ss(patch):
+		res = []
+		patch = patch.transpose(2, 0, 1)
+		for c in range(0, 3):
+			res.append(patch[c].max())
+			patch[c] = np.minimum(patch[c] * (brightest/float(patch[c].max())),255)
+		return res
+
+	def sss(patch):
+		res = []
+		patch = patch.transpose(2, 0, 1)
+		for c in range(0, 3):
+			h = np.bincount(patch[c].ravel(), minlength = 256)
+			sum = 0
+			max = 256
+			while (sum < int(th) & max > 1):
+				max = max - 1
+				sum = sum + h[max]
+			res.append(max)
+			patch[c] = np.minimum(patch[c] * (brightest/float(max)),255)
+		show(patch.transpose(1, 2, 0), 1)
+		return res
+
+def findmax(img, c):
+	max = -1
+	x, y, z = img.shape
+	for i in range(0, x):
+		for j in range(0, y):
+			if (img[i][j][c] > max):
+				max = img[i][j][c]
+	return max
+
+def check (a, b):
+	x, y, z = a.shape
+	for i in range(0, x):
+		for j in range(0, y):
+			if ((a[i][j] != b[i][j]).any(axis = 0)):
+				return i, j
+	return -1, -1
+check(p23, patch)
+// *terminated
+
+// report
+orig, gray, chipct, chip, warp, restr = process('20181119_LB_10_30min.jpg', 100, 0.1)
+hsv = cv2.cvtColor(restr, cv2.COLOR_BGR2HSV)
+spot, sur = spotEx(hsv, restr, 1, 7, 6, 20, 27, 40, 30, 15, 15, 20, 0)
+a = spot[0:72, 0: 420]
+cv2.imwrite('a.jpg',a)
+spot, sur = spotEx(hsv, restr, 1, 7, 6, 20, 27, 40, 30, 15, 25, 20, 0)
+spot, sur, spotMask, surMask = spotEx(restr, 7, 6, 20, 27, 40, 30, 35, 30, 15, 25, 2, 0, 0)
+
+
+**** Feb 22 ****
+os.chdir('wd/2018-19FYP/chip_v2/20181218')
+orig, gray, chipct, chip, warp, restr = process('20181218_ERM_2000ng.ml(1).jpg', 100, 0.1)
+res = normalize(restr, 7, 6, 20, 27, 40, 30, 35, 30, 15, 25, 2, 1, 1, 1, 1, 0) # v1 no change at all
+res = normalize(restr, 7, 6, 20, 27, 40, 30, 35, 30, 15, 25, 2, 1, 1, 1, 0, 0) # v0 obvious change
+
+// test on white patch version 1
+cv2.imshow('restr',restr)
+p23 = getPatch(restr, 2, 3, 20, 27, 40, 30, 35, 30, 15)
+p23norm = whitePatch(np.copy(p23), 1, 0)
+check(p23, p23norm) # still no change
+
+p23norm1 = np.copy(p23).transpose(2, 0, 1)
+for c in range(0, 3):
+	h23 = np.bincount(p23norm1[c].ravel(), minlength = 256)
+	sum23 = 0
+	max23 = 256
+	while (sum23 < int(420) & max23 > 1):
+		max23 = max23 - 1
+		sum23 = sum23 + h23[max23]
+	p23norm1[c] = np.minimum(p23norm1[c] * (256.0/float(max23)),255)
+	show(p23norm1.transpose(1, 2, 0), 1)
+	if cv2.waitKey(0) & 0xFF == ('a'):
+		break
+p23norm1 = p23norm1.transpose(1, 2, 0)
+view = np.hstack((p23, p23norm1)) # clearly different
+
+# problem discovered: x, y, z retrieved after transpose originally
+// terminated
+// add threshold para, remove chod para to and from whitePatch
+
+// full testing                                               nbin r  v  vs  th  a  d
+norm0 = lightAdjust(restr, 7, 6, 20, 27, 40, 30, 35, 30, 15, 25, 2, 1, 1, -1, -1, 0, 0)  # whiteRef
+norm1 = lightAdjust(restr, 7, 6, 20, 27, 40, 30, 35, 30, 15, 25, -1, -1, -1, 0, .1, 1, 0) # whitePat0
+norm2 = lightAdjust(restr, 7, 6, 20, 27, 40, 30, 35, 30, 15, 25, -1, -1, -1, 1, .1, 1, 0) # whitePat1
+view = np.hstack((norm0, norm1))
+view = np.hstack((view, norm2))
+// terminated
+
+// grayWorld
+norm = grayWorld(restr)
+check(norm, restr) # slightly different, cannot sense
+norm3 = lightAdjust(restr, 7, 6, 20, 27, 40, 30, 35, 30, 15, 25, -1, -1, -1, -1, -1, 2, 0) # grayWorld
+check(norm, norm3) # slightly different, cannot sense
+// terminated
+
+
+**** Feb 25 ****
+// investigate distribution of spot pixel
+p23 = getPatch(restr, 2, 3, 20, 27, 40, 30, 35, 30, 15)
+a = plt.hist(p23[:,:,0].ravel(),256,[0,256]); plt.show()
+a = plt.hist(p23[:,:,0].ravel(),256,[150,210]); plt.show()
+
+hsv = cv2.cvtColor(restr, cv2.COLOR_BGR2HSV)
+spot, sur, spotMask, surMask = spotEx(restr, 7, 6, 20, 27, 40, 30, 35, 30, 15, 25, 2, 0, 0)
+
+spot23 = getPatch(spot, 2, 3, 20, 27, 40, 30, 35, 30, 15)
+spot23dt = spot23[(spot23 != 0).all(axis = (2))]
+a = plt.hist(spot23dt[:,2].ravel(),256,[0,256]); plt.show()
+
+sur23 = getPatch(sur, 2, 3, 20, 27, 40, 30, 35, 30, 15)
+sur23dt = sur23[(sur23 != 0).all(axis = (2))]
+a = plt.hist(sur23dt[:,1].ravel(),256,[0,256]); plt.show()
+
+
+**** Feb 27 ****
+	def readinAll(root):
+		allChips = []
+		for dirs in os.walk(root):
+			curChip = []
+			for file in dirs:
+				img = cv2.imread(os.path.join(dirs, file))
+				if img is not None:
+					curChip.append(img)
+		allChips.append(np.array(curChip))
+		return np.array(allChips)
+
+os.chdir('wd/2018-19FYP/chip_v2')
+for dirs in os.walk('benchmarking'):
+	for file in dirs:
+		print(os.path.join(dirs, file))
+a = os.walk('benchmarking')
+b = os.walk(a)
+next(a)
+a = readinAll('benchmarking')
+
+
+**** Feb 28 ****
+// read in all images in defined order
+	def readin(curDir, curChip):
+		for filename in os.listdir(curDir):
+			img = cv2.imread(os.path.join(curDir, filename))
+			if img is not None:
+				curChip.append(img)
+
+	def readinAll(root):
+		allChips = []
+		for dirs in os.listdir(root):
+			curChip = []
+			readin(os.path.join(root, dirs), curChip)
+			allChips.append(curChip)
+		return allChips
+curChip = []
+a = readin('benchmarking/0', curChip)
+all = readinAll('benchmarking')
+
+// image distance calculation
+	def distanceAll(allChips):
+		allDist = []
+		for i in range(0, len(allChips)):
+			curChip = allChips[i]
+			curDist = []
+			for j in range(0, 2):
+				for k in range(2, 8, 2):
+					curDist.append(np.sum((curChip[j], curChip[j+k])**2))
+			allDist.append(curDist)
+		return allDist
+
+all = readinAll('a')
+allDist = distanceAll(all)
+
+// integrate cal with readin, reduce mem usage
+	def distanceAll(root):
+		allDist = []
+		curChip = []
+		for dirs in os.listdir(root):
+			del curChip[:]
+			curDir = os.path.join(root, dirs)
+			readin(os.path.join(root, dirs), curChip)
+			return curChip
+		def test(curChip):
+			curDist = []
+			for i in range(0, len(curChip)):
+				for j in range(0, 2):
+					for k in range(2, 8, 2):
+						curDist.append(np.sum((curChip[j]-curChip[j+k])**2) / )
+			allDist.append(curDist)
+			return allDist
+b = distanceAll('a')
+test(b)
+allDist = distanceAll('a')
+// glare removal
+img = cv2.imread('glare.jpg')
+hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)

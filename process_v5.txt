@@ -1,0 +1,157 @@
+# Remediate implemented. Gray & LAB thre, no display img - Apr 2 2019
+# para: name - name of the image to be processed
+#	thre - threshold value
+#	thb/g_f - factor for border/glare removal (.01 suggested)
+#	fold - image display fold
+#	display - whether display img or not
+#
+# output: orig - original image called "name"
+#	  gray - gray scaled orig
+#	  inner - np array being the contour of the chip
+#	  chip - image where areas inside inner are white, others are black
+#	  warp - perspective trasformed chip
+#	  restr - version of warp with top-right corner being completely black
+#
+def process(name, thre, thbf, thgf):
+
+	# self-explanatory
+	def maskInvAdd(mask, img):
+		mask_inv = cv2.bitwise_not(mask)
+		img_inv = cv2.bitwise_not(img)
+		merge_inv = cv2.add(mask_inv, img_inv)
+		merge = cv2.bitwise_not(merge_inv)
+		return merge
+
+	# draw contour out
+	# para: outer - target contour to display
+	#	img - blank image to draw
+	#
+	# outpu: img - areas inside/outside contour are white/black
+	#
+	def displayContour(outer, img):
+		return cv2.drawContours(img, [outer], -1, (255, 255, 255), -1)
+			
+	# black out areas out of contour
+	# para: ct - blank imaget to draw contour
+	#	targetCt1 - target contour to draw
+	#
+	# output: image where areas outside contour are black
+	#
+	def black(ct, targetCt1, gray):
+		ct = cv2.drawContours(ct, [targetCt1], -1, (255, 255, 255), -1)
+		return maskInvAdd(ct, gray)
+
+	# find corners of the given contour - chipct
+	# para: chipct - contour
+	#
+	# output: a - 
+	#	  hold - 
+	#
+	def apprf(chipct, thre, hold):
+		epsilon = thre * cv2.arcLength(chipct, True)
+		cr = cv2.approxPolyDP(chipct, epsilon, True)  # corners detected for chipct
+		x, y, z = cr.shape
+		a = np.reshape(cr, (x*y, z))		      # change data format of 
+		cv2.polylines(hold, [a], True, (255,255,255)) # draw quadrilateral defined by cr/a
+		return a, hold
+	
+	# find and sort contours presented in gray
+	# para: SAME
+	#
+	# output: a sorted list of contours
+	#
+	def findCountour(gray, thre):
+		ret, thresh = cv2.threshold(gray, thre, 255, 0)
+		tinv = cv2.bitwise_not(thresh)
+		image, contours, hierarchy = cv2.findContours(tinv,cv2.RETR_TREE,cv2.CHAIN_APPROX_SIMPLE)
+		sortedContour = sorted(contours, key = lambda x: cv2.contourArea(x))
+		return sortedContour
+
+	# check if "outer" is the outer contour of chip
+	# para: outer - current contour for check
+	#	thre - threshold for 
+	#
+	# output: 0 - cur contour is not outer chip border, proceed to next contour
+	#	  1 - cur contour is the chip outer contour
+	#
+	def check(outer, thre, gray):
+		ct = np.zeros_like(gray)
+		a1, hold = apprf(outer, 0.05, np.zeros_like(gray))
+		if (len(a1) != 4):
+			return 0, 0
+		# black-out areas outside outer to zoomIn
+		zoomIn = black(ct, outer, gray)
+
+		# only contours within outer will be considered in this case
+		sortedContour = findCountour(zoomIn, thre)
+		inner = sortedContour[len(sortedContour) - 2]
+		a2, hold2 = apprf(inner, 0.05, np.zeros_like(gray))
+		if (len(a2) != 4):
+			return 0, 0
+		return 1, inner	
+	
+	# read in image and locate precise chip area
+	# para: SAME
+	#
+	# output: orig - original image
+	#	  gray - grayscaled orig
+	#	  inner - contour bounding precisely chip area
+	#
+	def readin(name, thre):
+		orig = cv2.imread(name)
+		gray = cv2.cvtColor(orig, cv2.COLOR_BGR2GRAY)
+		sortedContour = findCountour(gray, thre)
+		n = len(sortedContour)
+		i = n - 1
+		while(i >= 1):
+			outer = sortedContour[i]
+			reach, inner = check(outer, thre, gray)
+			if (reach == 0):
+				i = i - 1
+			else:
+				break
+		return orig, gray, inner
+
+	# last step process, black-out glares and involved black borders	
+	def remediate(warp, thbf, thgf):
+		mask = np.full_like(warp, 255)
+		graywarp = cv2.cvtColor(warp, cv2.COLOR_BGR2GRAY)
+		labwarp = cv2.cvtColor(warp, cv2.COLOR_BGR2LAB)
+		x, y, c = labwarp.shape
+		histlab = histogram(labwarp, 0, 0, 0, 0, 0, '', 0, 1, 0, 0)
+
+		grayhistdt = np.reshape(graywarp, (x*y))
+		histgray,bins = np.histogram(grayhistdt[grayhistdt != 0], 256, [0,256])
+
+		# derive threshold value for black border_gray scale
+		thb = 0
+		bct = 0
+		for i in range(0, 255, 1):
+			if (bct >= thbf * x * y or i >= 60):
+				thb = i
+				break
+			bct = bct + histgray[i]
+
+		# derive threshold value for glare_LAB space
+		thg = 0
+		gct = 0
+		for i in range(255, 0, -1):
+			if (gct >= thgf * x * y or i <= 240):
+				thg = i
+				break
+			gct = gct + histlab[i]
+
+		# thresholding
+		bordermask = (graywarp[:,:] >= thb).astype(np.uint8) # pixel gray value <= th, black-out
+		mask = mask * bordermask[:,:,None]
+		glaremask = (labwarp[:,:,0] <= thg).astype(np.uint8) # pixel L value > th, black-out
+		mask = mask * glaremask[:,:,None]
+
+		restr = maskInvAdd(mask, warp)
+		return restr, thb, thg, histgray, histlab
+		
+	orig, gray, inner = readin(name, thre)
+	chip = displayContour(inner, np.zeros_like(gray))
+	warp = persTransU(inner, orig, gray, chip) # v2
+	restr, thb, thg, histgray, histlab = remediate(warp, thbf, thgf)
+	return orig, gray, inner, chip, warp, restr
