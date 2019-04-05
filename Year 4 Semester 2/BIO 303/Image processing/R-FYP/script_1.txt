@@ -1,0 +1,806 @@
+**** Nov 4 ****
+// clear 0 values
+nozero = inten[!apply(inten[, 1] == 0, 1, FUN = any, na.rm = TRUE),] 
+nonzero = inten[-row(inten)[inten == 0],]
+inteM = apply(nonzero, 2, mean)
+inteSD = apply(nonzero, 2, sd)
+yy = matrix(inteM, 3, 36, byrow = F)
+ee = matrix(inteSD, 3, 36, byrow = F)
+rownames(yy) = c("R", "G", "B")
+rownames(ee) = c("R", "G", "B")
+n = c(1:36)
+colnames(yy) = n
+colnames(ee) = n
+
+barx<-barplot(yy, width = 0.27, beside = T, col = c("red","green","blue"),
+              xlim = c(0, 36), ylim = c(0, 255), legend = rownames(yy),
+	      xlab = "Spot #", ylab = "Intensity", main = "RGB intensity of spot")
+
+ee[1:3, j] = inteSD1[(3 * j - 2): (3 * j)]
+			ee[4:6, j] = inteSD2[(3 * j - 2): (3 * j)]
+	rownames(ee) = c("AMP-R", "G", "B", "NC-R", "G", "B")
+
+	## par(mfrow = c(3, 2))
+
+
+**** Nov 6 ****
+plot = function(nzr1, nzr2, n) {
+	layout = (matrix(c(1, 2, 3, 4, 5, 6), 3, 2))
+	inteM1 = apply(nzr1, 2, mean)
+	inteM2 = apply(nzr2, 2, mean)
+	inteSD1 = apply(nzr1, 2, sd)
+	inteSD2 = apply(nzr2, 2, sd)
+	for (i in 1: 6) {
+		yy = matrix(nrow = 6, ncol = 6)
+		ee = matrix(nrow = 6, ncol = 6)
+		b = 18 * (i - 1)
+		rownames(yy) = c("AMP-R", "G", "B", "NC-R", "G", "B")
+		for (j in 1: 6) {
+			yy[1:3, j] = inteM1[(b + (3 * j) - 2): (b + (3 * j))]
+			yy[4:6, j] = inteM2[(b + (3 * j) - 2): (b + (3 * j))]
+			
+		}
+		colnames(yy) = c((i * 6 - 5) : (i * 6))
+		barplot(yy, width = 0.27, beside = T, col = c("blue","green","red", 
+			"blue","green","red"), xlim = c(0, 12), ylim = c(0, 255), 
+			legend = rownames(yy), xlab = "Spot #", ylab = "Intensity")
+	}		
+}
+
+amp545 = read.csv('AMP5_45.csv', header = F)
+amp545n = read.csv('AMP5_45n.csv', header = F)
+nc45 = read.csv('NC_45.csv', header = F)
+nc45n = read.csv('NC_45n.csv',header = F)
+
+nzramp545 = amp545[-row(amp545)[amp545 == 0],]
+nzrnc45 = nc45[-row(nc45)[nc45 == 0],]
+p = plot(nzramp545, nzrnc45, 2)
+
+
+**** Nov 11 ****
+nc45sp = read.csv('nc45spot.csv', header = F)
+nc45sr = read.csv('nc45surr.csv',header = F)
+nznc45sp = nc45sp[-row(nc45sp)[nc45sp == 0],]
+nznc45sr = nc45sr[-row(nc45sr)[nc45sr == 0],]
+nc45spm = apply(nznc45sp, 2, mean)
+nc45srm = apply(nznc45sr, 2, mean)
+
+a45sp = read.csv('a45spot.csv', header = F)
+a45sr = read.csv('a45surr.csv',header = F)
+nza45sp = a45sp[-row(a45sp)[a45sp == 0],]
+nza45sr = a45sr[-row(a45sr)[a45sr == 0],]
+a45spm = apply(nza45sp, 2, mean)
+a45srm = apply(nza45sr, 2, mean)
+
+a = rbind(nc45srm, a45srm)
+b = t(t(nc45srm) / a45srm)
+a = as.vector(a)
+b = rbind(nc45srm, a)
+ratio = apply(a, 2, /)
+
+
+**** Nov 12 ****
+b = t(nc45srm) / a45srm
+a = t(a45srm) / a45srm
+ref = rbind(a, b)
+row.names(ref) = c("a45", "nc45")
+inten = rbind(a45spm, nc45spm)
+nma45m = round(ref[-1] / inten[-1], 1)
+
+
+// normalize spot intensity 
+normalize = function(r, ref, inten) {
+	norm1 = matrix(nrow = 2, ncol = 108)
+	for (i in 1: r) {
+		for (j in 1: 108) {
+			norm1[i, j] = inten[i, j] / ref[i, j]
+		}
+	}
+	return (norm1)
+}
+
+// transform normlized matrix into the format for plotting
+process = function(r, norm) {
+	plotDt = matrix(nrow = 6, ncol = 36)
+	for (i in 1: r) {
+		for (k in 1: 3) {
+			for (j in 1: 36) {
+				c = 3*(j - 1) + k
+				plotDt[(i - 1)*3 + k, j] = inten[i, c] / ref[i, c]
+			}
+		}
+	}
+	colnames(plotDt) = c(1: 36)
+	return plotDt
+}
+
+rownames(plotDt) = c("B-AMP", "G", "R", "B-NC", "G", "R")
+
+// plot normalized intensity
+plot = function(data) {
+	m = matrix(c(1, 1, 2, 3, 4, 5, 6, 7), 4, 2, byrow = T)
+	layout(mat = m, heights = c(3,3,3))
+	for (i in 1: 6) {
+		par(mar = c(2, 2, 1, 1))
+		barplot(plotDt[,((6*i) - 5): (6*i)], width = 0.27, beside = T)
+	}
+	plot(1, type = "n", axes=FALSE, xlab="", ylab="")
+	legend(x = "top",legend = c("Fabricated Metal", "Iron and Steel", "Paper","Beverages", "Tobacco"),inset = 0, horiz = TRUE)	
+}
+plot(plotDt)
+
+// plot enhance -- untouched yet
+set.seed(42)
+catA <- factor(c("m100", "m500", "m1000", "m2000", "m3000", "m5000"))
+catB <- factor(20:28)
+samples <- 100
+rsample <- function(v) v[ceiling(runif(samples, max=length(v)))]
+Tab <- data.frame(catA = rsample(catA),
+                  catB = rsample(catB),
+                  valA = rnorm(samples, 150, 8),
+                  valB = pmin(1,pmax(0,rnorm(samples, 0.5, 0.3))))
+op <- par(mfrow = c(2,2),
+          oma = c(5,4,0,0) + 0.1,
+          mar = c(0,0,1,1) + 0.1)
+for (i in 0:3) {
+  x <- Tab[[1 + i %% 2]]
+  plot(x, Tab[[3 + i %/% 2]], axes = FALSE)
+  axis(side = 1,
+       at=1:nlevels(x),
+       labels = if (i %/% 2 == 1) levels(x) else FALSE)
+  axis(side = 2, labels = (i %% 2 == 0))
+  box(which = "plot", bty = "l")
+}
+title(xlab = "Some Categories",
+      ylab = "Some Values",
+      outer = TRUE, line = 3)
+par(op)
+// end
+
+
+**** Mar 17 2019 ****
+// 1st attempt, KW test 3 blocks
+l1b = read.csv(file = "l1b.xls")
+l1b = t(l1b)
+l1b = as.data.frame(l1b)
+p2b = l1b[43:84]
+
+d = p2b[1:3]
+d = a[!is.na(d)]
+ld = c(rep("1",3818),rep("2",3810),rep("3",3781))
+df = cbind(ld, d)
+kruskal.test(d ~ ld, data=df)
+
+	Kruskal-Wallis rank sum test
+
+data:  d by ld
+Kruskal-Wallis chi-squared = 0.014693, df = 2, p-value = 0.9927
+
+
+**** Mar 18 ****
+// within chip
+// ignore -1
+collectChip = function(curimg, id, light) {
+	res = data.frame()
+	for (blockid in 1 : 42) {
+		curblock = curimg[blockid]
+		intensity_value = curblock[!is.na(curblock)]
+		n = length(t(intensity_value))
+		lightL = c(rep(light, n))
+		imgL = c(rep(id, n))
+		blockL = c(rep(blockid, n))
+		curdt = cbind(lightL, imgL, blockL, intensity_value)
+		res = rbind(res, curdt)
+	}
+	return (res)
+}
+
+// maintain -1
+# data for current img and its id
+collectChip = function(curimg, id, light) {
+	res = data.frame()
+	empty = t(curimg[1])[1] == -1
+	for (blockid in 1 : 42) {
+		curblock = curimg[blockid]
+		n = 0
+		intensity_value = c()
+		if (empty) {
+			n = 1
+			intensity_value = c(-1)
+		} else {
+			intensity_value = curblock[!is.na(curblock)]
+			n = length(t(intensity_value))
+		}
+		lightL = c(rep(light, n))
+		imgL = c(rep(id, n))
+		blockL = c(rep(blockid, n))
+		curdt = cbind(lightL, imgL, blockL, intensity_value)
+		res = rbind(res, curdt)
+	}
+	return (res)
+}
+
+# test
+p2bdt = collectChip(p2b, 2, 1)
+count = 0
+for (i in 0:42) {
+	cb = p2b[i]
+	cbd = cb[!is.na(cb)]
+	count = count + length(t(cbd))
+}
+
+kruskal.test(intensity_value ~ blockL, data=p2bdt)
+// signi diff, possibly need to process before analysis
+# terminated
+
+# data for all
+// ignore -1 data 
+convert = function(dset, light, n) {
+	res = data.frame()
+	for (i in 1 : n) {
+		st = ((i - 1) * 42) + 1
+		if (t(dset[st])[1] != -1) {
+			curimg = dset[st:(st+41)]
+			cdt = collectChip(curimg, i, light)
+			res = rbind(res, cdt)
+		}
+	}
+	return (res)
+}
+
+// leave -1 to hold place for -1
+convert = function(dset, light, n) {
+	res = data.frame()
+	for (i in 1 : n) {
+		st = ((i - 1) * 42) + 1
+		curimg = dset[st:(st+41)]
+		cdt = collectChip(curimg, i, light)
+		res = rbind(res, cdt)
+	}
+	return (res)
+}
+
+# test
+// v2
+res = convert(l1b, 1, 1)
+# termiated
+
+
+**** Mar 19 ****
+res = convert(l1b, 1, 3)
+kruskal.test(intensity_value ~ blockL, data = res)
+
+b1 = subset(res, blockL == 1)
+kruskal.test(intensity_value ~ blockL, data=b1)
+
+
+**** Mar 21 ****
+library(gplots)
+b2 = subset(res, blockL == 2)
+b3 = subset(res, blockL == 3)
+b = rbind(b1, b2, b3)
+
+a = res[ which( res$blockL == 1 | res$blockL == 2 | res$blockL == 3 | res$blockL == 4 ) , ]
+plt = plotmeans(intensity_value ~ blockL, data = dt, ylim = c(ylo, yhi), n.label = FALSE)
+            1          2         3          4           5            6          7             8              9
+stats = c("mean", "mean_se", "mean_sd", "mean_ci", "mean_range", "median", "median_iqr", "median_mad", "median_range")
+blockStat = function(dfchip, n, ylo, yhi, stat, add) {
+	sel = c(rep(1:n))
+	dt = dfchip[ which(dfchip$blockL %in% sel) , ]
+	ggerrorplot(dt, x = "blockL", y = "intensity_value", desc_stat = 
+		    stats[stat], error.plot = "errorbar", add = stats[add],
+		    xlab = FALSE, short.panel.labels = FALSE)
+}
+blockStat(dfc2l1b, 42, 120, 160, 6, 6)
+fit = aov(intensity_value ~ blockL)
+
+
+**** Mar 23 ****
+is.numeric(c2l1b$V43[[1]])
+a = c2l1b$V43[!is.na(c2l1b$V43)]
+median(c2l1b$V43[!is.na(c2l1b$V43)])
+
+b = sapply(c2l1b, median, na.rm = T)
+r = b
+g = b
+df = data.frame(r, g, b)
+
+d = dist(df)
+as.matrix(d)[1:4,1:4]
+fit.average <- hclust(d, method="average")
+plot(fit.average, hang=-1, cex=.8)
+
+library(NbClust)
+devAskNewPage(ask=TRUE)
+nc <- NbClust(df, distance="euclidean",min.nc=2, max.nc=15, method="average")
+table(nc$Best.n[1,])
+
+clusters <- cutree(fit.average, k=5)
+table(clusters)
+rect.hclust(fit.average, k=5)
+
+
+**** Mar 28 ****
+// test whether NbClust can be performed
+dfunique = df[c(1,3,4,5,6,7,8,12),]
+library(NbClust)
+clusters <- cutree(fit.average, k=5)
+table(clusters)
+rect.hclust(fit.average, k=5)
+
+
+**** Mar 29 ****
+spot = read.csv(file = "spot.csv")
+patch = read.csv(file = "patch.csv")
+
+colnames(patch) = c("R", "G", "B")
+
+// append light, img, block label to data (one RGB for each block)
+addLabelBw = function(dt, nl) {
+	nimg = nrow(dt) / (nl * 42)
+	block_id = rep(seq(1, 42, 1), nimg * nl)
+	dt = cbind(block_id, dt)
+	img_id = rep(1:nimg, each = 42)
+	dt = cbind(img_id, dt)
+	light_id = rep(1:nl, each = 42 * nimg)
+	dt = cbind(light_id, dt)
+	return (dt)
+}
+// add light, img, block id to data
+bkpdt = process(bpatch, 3) # block based data
+bksdt = process(bspot, 3)
+
+
+**** Mar 30 ****
+// ** Data preparation ** (follow Mar 29)
+// append light, img label to data (one RGB for each img)
+addLabelIw = function(dt, nl) {
+	nimg = nrow(dt) / nl
+	img_id = rep(1:nimg, nl)
+	dt = cbind(img_id, dt)
+	light_id = rep(1:nl, each = nimg)
+	dt = cbind(light_id, dt)
+	return (dt)
+}
+imgpdt = process2(ipatch, 3) # img based data
+imgsdt = process2(ispot, 3)
+
+// ** Analysis for patches **
+// cluster analysis for patches
+as.matrix(cdist)[1:4,1:4]
+fit.average <- hclust(cdist, method="average")
+plot(fit.average, hang=-1, cex=.8)
+cdt = pdt[which(pdt$img_id == 2 & pdt$light_id == 1), ]
+library(NbClust)
+devAskNewPage(ask=TRUE)
+nc <- NbClust(cdt[4:6], distance="euclidean",min.nc=2, max.nc=15, method="average")
+table(nc$Best.n[1,])
+
+// common function, check # of clusters that cdt can be classified into
+individEval = function(cdt, mx) {
+	if (cdt[1,]$R == -1) return (NA)
+
+	devAskNewPage(ask=FALSE)
+	nc <- NbClust(cdt[4:6], distance="euclidean",min.nc=2, max.nc=mx, method="average")
+	t = table(nc$Best.n[1,])
+	t = as.vector(t)
+	mx = max(t)
+	ncluster = 0
+	for (i in 1 : length(t)) {
+		if (t[i] == mx) {
+			ncluster = i
+			break
+		}
+	}
+	return (ncluster)
+}
+
+individEval = function(cdt, mx) {
+	if (cdt[1,]$R == -1) return (NA)
+
+	out <- tryCatch({
+			devAskNewPage(ask=FALSE)
+			nc <- NbClust(cdt[4:6], distance="euclidean",min.nc=2, max.nc=mx, method="average")
+		},
+		error = function(cond) {
+			return (-1)
+		}
+	)
+
+	if (typeof(out) != "list")
+		return ("error")
+	ncluster = 0
+	t = table(out$Best.n[1,])
+	t = as.vector(t)
+	mx = max(t)
+	for (i in 1 : length(t)) {
+		if (t[i] == mx) {
+			ncluster = i
+			break
+		}
+	}
+	return (ncluster)
+}
+
+// check whether white color are uniform
+# level_1: within chip across blocks
+# level_2: across blocks in chips under same light
+# level_3: across blocks from all chips          $$$ stay tuned $$$
+# dt used under different level should be different
+patchEval = function(dt, nl, ni, level) {
+	if (level == 1) {
+		res = matrix(, nrow = nl, ncol = ni)
+		for (light in 1 : nl) {
+			for (img in 1 : ni) {
+				cdt = dt[which(dt$img_id == img & dt$light_id == light), ]
+				val = individEval(cdt, 8)
+				if (!is.integer(val)) res[light, img] = val 
+				else res[light, img] = val / nrow(cdt)
+			}
+		}
+	} else if (level == 2) {
+		res = vector()
+		for (light in 1 : nl) {
+			cdt = dt[which(dt$light_id == light), ]
+			val = individEval(cdt, 8)
+			if (!is.integer(val)) res[light, img] = val 
+			else res[light, img] = val / nrow(cdt)
+		}
+	}
+	return (res)
+}
+res = patchEval(bkpdt, 2, 2, 1)
+
+// ** Analysis for spots **
+// manual label, import from external csv
+label = read.csv(file = "label.csv")
+label_id <- data.frame(a=unlist(label, use.names = FALSE))
+sdt = cbind(sdt, label_id)
+colnames(sdt)[1] = c("label_id")
+
+// check spots within label(color group) uniformity
+spotUnifEval = function(dt, nl, ni, nlb, level) {
+	if (level == 1) {
+		res = array(numeric(), c(nl, ni, nlb)) # nl row, ni col
+		for (label in 1 : nlb) {
+			for (light in 1 : nl) {
+				for (img in 1 : ni) {
+					cdt = dt[which(dt$img_id == img & dt$light_id == light & dt$label_id == label), ]
+					val = individEval(cdt, min(6, nrow(cdt)))
+					if (!is.integer(val)) res[light, img, label] = val 
+					else res[light, img, label] = val / nrow(cdt)
+				}
+			}
+		}
+	} else if (level == 2) {
+		res = matrix(, nrow = nlb, ncol = nl)
+		for (label in 1 : nlb) {
+			for (light in 1 : nl) {
+				cdt = dt[which(dt$label_id == label & dt$light_id == light), ]
+				val = individEval(cdt, min(6, nrow(cdt)))
+				if (!is.integer(val)) res[light, img, label] = val 
+				else res[light, img, label] = val / nrow(cdt)
+			}
+		}
+	}
+	return (res)
+}
+
+# test
+dt = bksdtcdt = dt[which(dt$img_id == 2 & dt$light_id == 1 & dt$label_id == 1), ]
+# (55,60, 65) is causing error
+cdt = dt[which(dt$img_id == 2 & dt$light_id == 1), ]
+# strangely, no error
+cdt = dt[which(dt$img_id == 1 & dt$light_id == 1 & dt$label_id == 1), ]
+cdt = dt[which(dt$img_id == 2 & dt$light_id == 1 & dt$label_id == 1), ] # error
+cdt = dt[which(dt$img_id == 1 & dt$light_id == 2 & dt$label_id == 1), ]
+cdt = dt[which(dt$img_id == 2 & dt$light_id == 2 & dt$label_id == 1), ]
+
+cdt = dt[which(dt$img_id == 1 & dt$light_id == 1 & dt$label_id == 2), ]
+cdt = dt[which(dt$img_id == 2 & dt$light_id == 1 & dt$label_id == 2), ]
+cdt = dt[which(dt$img_id == 1 & dt$light_id == 2 & dt$label_id == 2), ]
+cdt = dt[which(dt$img_id == 2 & dt$light_id == 2 & dt$label_id == 2), ]
+nc <- NbClust(cdt[4:6], distance="euclidean",min.nc=2, max.nc=mx, method="average")
+v = individEval(cdt, min(6, nrow(cdt)))
+
+res = spotUnifEval(bksdt, 2, 2, 2, 1)
+
+// check spots among label distinctness
+
+
+**** Apr 2 ****
+// Standard Procedures
+// Readin
+hbiw = read.csv(file = "histogramBased_imgWise.csv", header = FALSE)
+hblw = read.csv(file = "histogramBased_lightWise.csv", header = FALSE)
+hbbwp = read.csv(file = "histogramBased_patch_blockWise.csv", header = FALSE)
+hbbws = read.csv(file = "histogramBased_spot_blockWise.csv", header = FALSE)
+lbs = read.csv(file = "labels.csv", header = FALSE)
+
+// Add labels
+# Blockwise
+colnames(hbbwp) = c("R", "G", "B")
+colnames(hbbws) = c("R", "G", "B")
+hbbwp = addLabelBw(hbbwp, 3) # Mar 29
+hbbws = addLabelBw(hbbws, 3)
+
+lbs = data.frame(a=unlist(lbs, use.names = FALSE))
+lbs = rbind(lbs, lbs, lbs)
+hbbws = cbind(hbbws, lbs)
+colnames(hbbws)[7] = c("label_id")
+
+
+# Imgwise (# of light, # of label)
+colnames(hbiw) = c("R", "G", "B")
+addLabelIw = function(dt, nl, nlb) {
+	nimg = nrow(dt) / (nl * (nlb + 1))
+	lb = rep(c(0, 1, 2, 3), nimg * nl)
+	dt = cbind(lb, dt)
+	img_id = rep(1 : (nimg * nl), each = nlb + 1)
+	dt = cbind(img_id, dt)
+	light_id = rep(1:nl, each = nimg * (nlb + 1))
+	dt = cbind(light_id, dt)
+	return (dt)
+}
+hbiw = addLabelIw(hbiw, 3, 3)
+colnames(hbiw)[3] = c("label_id")
+
+
+**** Apr 3 ****
+# Lightwise
+colnames(hblw) = c("R", "G", "B")
+addLabelLw = function(dt, nl, nlb) {
+	lb = rep(c(0, 1, 2, 3), nl)
+	dt = cbind(lb, dt)
+	light_id = rep(1:nl, each = nlb + 1)
+	dt = cbind(light_id, dt)
+	return (dt)
+}
+hblw = addLabelLw(hblw, 3, 3)
+colnames(hblw)[3] = c("label_id")
+
+// Analysis
+library(NbClust)
+# common function
+# stcl - start column of RGB in cdt
+individEval = function(cdt, mx, stcl) {
+	if (cdt[1,]$R == -1) return (NA) # unhandled image, ignore
+	out <- tryCatch({
+			devAskNewPage(ask=FALSE)
+			nc <- NbClust(cdt[stcl : (stcl + 2)], distance="euclidean",min.nc=2, max.nc=mx, method="average")
+		},
+		error = function(cond) {
+			return (-1)
+		}
+	)
+	if (typeof(out) != "list") return ("error") # evaluation error
+
+	t = table(out$Best.n[1,])
+	pos = row.names(t)
+	mx = max(t)
+	for (i in 1 : length(t))
+		if (t[i] == mx) return (as.numeric(pos[i]))
+}
+
+# patch evaluate
+# level_1: within chip across blocks
+# level_2: across blocks in chips under same light
+# level_3: across blocks from all chips          $$$ stay tuned $$$
+# dt used under different level should be different
+patchEval = function(dt, nl, ni, level) {
+	# blockwise
+	if (level == 1) {
+		res = matrix(, nrow = nl, ncol = ni)
+		for (light in 1 : nl) {       # light\th light condition
+			for (img in 1 : ni) { # img\th image
+				cdt = dt[which(dt$img_id == img & dt$light_id == light), ]
+				val = individEval(cdt, 8, 4)
+				if (!is.integer(val)) res[light, img] = val # error
+				else res[light, img] = val / nrow(cdt)      # append to res matrix
+			}
+		}
+	}
+	# imagewise
+	else if (level == 2) {
+		res = vector()
+		for (light in 1 : nl) {
+			cdt = dt[which(dt$light_id == light & dt$lb == 'patch'), ]
+			val = individEval(cdt, 8, 4)
+			if (!is.integer(val)) res[light, img] = val 
+			else res[light] = val / nrow(cdt)
+		}
+	}
+	# lightwise
+	else {
+		
+	}
+	return (res)
+}
+
+res = patchEval(hbbwp, 3, 3, 1) # histogram based no need to evaluate patch
+
+
+# spot evaluate
+spotEval = function(dt, nl, ni, nlb, level) {
+	if (level == 1) {        # blockwise
+		res = array(numeric(), c(nl, ni, nlb)) # nl row, ni col
+		for (label in 1 : nlb) {
+			for (light in 1 : nl) {
+				for (img in 1 : ni) {
+					cdt = dt[which(dt$img_id == img & dt$light_id == light & dt$label_id == label), ]
+					val = individEval(cdt, min(6, nrow(cdt)), 4)
+					if (!is.double(val)) res[light, img, label] = val
+					else res[light, img, label] = paste(as.character(val), as.character(nrow(cdt)), sep = '/')
+				}
+			}
+		}
+	} else if (level == 2) {  # imagewise
+		res = matrix(, nrow = nlb, ncol = nl)
+		for (label in 1 : nlb) {
+			for (light in 1 : nl) {
+				cdt = dt[which(dt$label_id == label & dt$light_id == light & dt$R != -1), ]
+				val = individEval(cdt, min(6, nrow(cdt)), 4)
+				if (!is.double(val)) res[light, label] = val
+				else res[light, label] = paste(as.character(val), as.character(nrow(cdt)), sep = '/')
+			}
+		}
+	} else { # lightwise
+		
+	}
+	return (res)
+}
+
+res = spotEval(hbbws, 3, 3, 3, 1) # blockwise
+cdt = hbbws[which(hbbws$img_id == 1 & hbbws$light_id == 3 & hbbws$label_id == 2), ]
+cdt = hbbws[which(hbbws$img_id == 3 & hbbws$light_id == 1), ]
+nc <- NbClust(cdt[4:6], distance="euclidean",min.nc=2, max.nc=10, method="average")
+val = individEval(cdt, min(6, nrow(cdt)), 4)
+
+res = spotEval(hbiw, 3, 3, 3, 2) # imgwise
+cdt = hbiw[which(hbiw$label_id == 1 & hbiw$light_id == 2 & hbiw$R != -1), ]
+nc <- NbClust(cdt[4:6], distance="euclidean",min.nc=2, max.nc=3, method="average")
+val = individEval(cdt, min(6, nrow(cdt)), 4)
+
+
+**** Apr 4 ****
+// lightwise KW
+clight2 = read.csv(file = 'clight2.csv', header = FALSE)
+colnames(clight1) = c("R", "G", "B")
+light_id = c(rep(1, nrow(clight1)))
+clight1 = cbind(light_id, clight1)
+
+lwReadin = function(name) {
+	res = c(0, 0, 0, 0)
+	for (i in 1: length(name)) {
+		clight = read.csv(file = name[i], header = FALSE)
+		colnames(clight) = c("R", "G", "B")
+		light_id = c(rep(i, nrow(clight)))
+		clight = cbind(light_id, clight)
+		res = rbind(res, clight)
+	}
+	return (res[2:nrow(res),])
+}
+name = c('clight1.csv', 'clight2.csv', 'clight3.csv')
+clw = lwReadin(name)
+kruskal.test(R ~ light_id, data = clw)
+
+#	Kruskal-Wallis rank sum test
+#
+# data:  R by light_id
+# Kruskal-Wallis chi-squared = 2239100, df = 2, p-value < 2.2e-16
+
+name = c('hblight1.csv', 'hblight2.csv', 'hblight3.csv')
+hblw = lwReadin(name)
+kruskal.test(R ~ light_id, data = hblw)
+fit <- aov(hblw$R ~ hblw$light_id)
+summary(fit)
+
+# data:  R by light_id
+# Kruskal-Wallis chi-squared = 10632, df = 2, p-value < 2.2e-16
+#
+# Abandon, too slow and hardly be nonsignificant
+
+// fewer data in peak region
+
+
+**** Apr 5 ****
+a = c(rep(200, 100), rep(199, 98), rep(201, 103))
+l = c(rep(1, 100), rep(2, 98), rep(3, 103))
+t = as.data.frame(cbind(l, a))
+fit <- aov(t$a~t$l)
+plotmeans(a ~ l, xlab="Treatment", ylab="Response")
+a = 190 + c(sample.int(20, 3000, replace = TRUE))
+a = rnorm(3000, mean = 200, sd = 2)
+hist(a)
+l = c(rep(1, 1000), rep(2, 997), rep(3, 1003))
+
+// newly made up date_test
+a = read.csv(file = name[1], header = FALSE)
+colnames(a) = c("R")
+l = c(rep(1, 69), rep(2, 121), rep(3, 136))
+t = as.data.frame(cbind(l, a))
+fit <- aov(t$R~t$l)
+wmc(R ~ l, data = t, method="holm")
+
+// ** auto_histogramBased_patch_not different
+lwReadin = function(name, sz, i) {
+	a = read.csv(file = name[i], header = FALSE)
+	light_id = c(rep(1, sz[1,i]), rep(2, sz[2,i]), rep(3, sz[3,i]))
+	return (as.data.frame(cbind(light_id, a)))
+}
+name = c('69_121_136_R.csv', '68_125_130_G.csv', '69_125_138_B.csv')
+sz = matrix(c(69, 121, 136, 68, 125, 130, 69, 125, 138), nrow = 3, ncol = 3)
+# each col for each channel
+hblwpr = lwReadin(name, sz, 1)
+hblwpg = lwReadin(name, sz, 2)
+hblwpb = lwReadin(name, sz, 3)
+
+fit <- aov(hblwpr$V1 ~ hblwpr$light_id)
+fit <- aov(hblwpg$V1 ~ hblwpg$light_id)
+fit <- aov(hblwpb$V1 ~ hblwpb$light_id)
+
+                 Df Sum Sq Mean Sq F value Pr(>F)
+hblwpr$light_id   1     35   34.95   1.586  0.209
+Residuals       324   7138   22.03               
+
+                 Df Sum Sq Mean Sq F value Pr(>F)
+hblwpg$light_id   1     27   26.79   1.108  0.293
+Residuals       321   7759   24.17               
+
+                 Df Sum Sq Mean Sq F value Pr(>F)
+hblwpb$light_id   1     52   52.49    2.12  0.146
+Residuals       330   8171   24.76  
+
+# plot
+plt = plotmeans(V1 ~ light_id, data = hblwpr, ylim = c(197, 202), n.label = FALSE, 
+		ylab = "R value", xlab = "Light condition"),
+		main = "Lightwise R channel value of patch area")
+
+// ** before norm **
+name = c('82_145_144_R.csv', '80_130_141_G.csv', '87_130_142_B.csv')
+sz = matrix(c(82, 145, 144, 80, 130, 141, 87, 130, 142), nrow = 3, ncol = 3)
+clwpr = lwReadin(name, sz, 1)
+clwpg = lwReadin(name, sz, 2)
+clwpb = lwReadin(name, sz, 3)
+
+fit <- aov(clwpr$V1 ~ clwpr$light_id)
+fit <- aov(clwpg$V1 ~ clwpg$light_id)
+fit <- aov(clwpb$V1 ~ clwpb$light_id)
+
+                Df Sum Sq Mean Sq F value Pr(>F)    
+clwpr$light_id   1 214444  214444    1415 <2e-16 ***
+Residuals      369  55929     152                   
+
+                Df Sum Sq Mean Sq F value Pr(>F)    
+clwpg$light_id   1 269523  269523    1772 <2e-16 ***
+Residuals      349  53086     152                   
+
+                Df Sum Sq Mean Sq F value Pr(>F)    
+clwpb$light_id   1 106012  106012   584.5 <2e-16 ***
+Residuals      357  64753     181                   
+---
+Signif. codes:  0 ¡®***¡¯ 0.001 ¡®**¡¯ 0.01 ¡®*¡¯ 0.05 ¡®.¡¯ 0.1 ¡® ¡¯ 1
+
+# plot
+plt = plotmeans(V1 ~ light_id, data = clwpb, ylim = c(150, 210), n.label = FALSE, 
+		ylab = "B value", xlab = "Light condition", cex.main = .8
+		main = "Lightwise B channel value of patch area before normalization")
+
+
+// ** wp2 **
+name = c('58_6_114_R.csv', '56_6_112_G.csv', '59_5_116_B.csv')
+sz = matrix(c(58, 6, 114, 56, 6, 112, 59, 5, 116), nrow = 3, ncol = 3)
+wp2lwpr = lwReadin(name, sz, 1)
+wp2lwpg = lwReadin(name, sz, 2)
+wp2lwpb = lwReadin(name, sz, 3)
+
+fit <- aov(wp2lwpr$V1 ~ wp2lwpr$light_id)
+fit <- aov(wp2lwpg$V1 ~ wp2lwpg$light_id)
+fit <- aov(wp2lwpb$V1 ~ wp2lwpb$light_id)
+
+plt = plotmeans(V1 ~ light_id, data = wp2lwpb, ylim = c(0, 255), n.label = FALSE, 
+		ylab = "B value", xlab = "Light condition", cex.main = .8,
+		main = "Lightwise B channel value of patch area before normalization")
+
+
+// ** wp1 **
