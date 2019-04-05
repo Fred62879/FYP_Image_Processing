@@ -1,0 +1,124 @@
+# disclose precise spot area from the chip, adjust for variations in real spot shape and size
+# para: warpHSV - perspectively transformed chip in HSV space
+#	warp - perspectively transformed chip in space as desired
+# 	fold - display fold
+# 	rw * cl chip
+# 	rst - horizontal distance between leftmost point of spot at top-left corner
+#	      and the blackborder of left edge
+# 	cst - vertical distance between topmost ... top edge
+# 	hd - horizontal distance between two spots
+# 	vd - vertical ...
+# 	r - radius of spot
+#	dr - radius to draw spot
+#	th - threshold for spot size adjustment
+#	adj - if adj == 1, do adjustment
+#	      else only return calculated shape
+#
+# output: spotF - image where precisely spots are maintained, others areas black
+#	  surF - image where precisely spots are black, other areas maintained
+#
+
+def spotEx(warpHSV, warp, fold, rw, cl, rst, cst, hd, vd, r, dr, th, adj):
+
+	# find the average s-value of the panel area of the chip
+	# para: 
+	#
+	# output:
+	#
+	#
+	def threshold(mergeS):
+		return np.mean(mergeS)
+		
+
+	# adjust area of the spot with given center - Nov 25
+	# para: cr/cc - coordinate of current spot center
+	#	dr - radius of circle in mask
+	#	th - threshold that differentiate non-spot from spot
+	#
+	# output: maskR - fine-tuned mask which define precise spot area
+	#
+	def square(maskR, s, spotR, cr, cc, dr, th):
+		len = maskR.shape[0]
+		for i in range(cr - dr, cr + dr):
+			for j in range(cc - dr, cc + dr):
+				   # spots in the last row exceed this limit
+				if(i >= len or j >= len
+				   # spot in top-right corner include the black triangle
+				   or (spotR[i, j] == [255, 255, 255]).all()
+				   or s[i, j] > th):
+					continue
+				maskR[i, j] = [255, 255, 255]
+		return maskR
+
+	# adjust spotR to exclude areas that are not spots - Nov 25/Dec 22
+	# para: maskR - rough mask, used to generate merge (warp + maskR = merge)
+	#	s - s channel of spotR
+	#	spotR = hsv + maskR
+	#	th - threshold that differentiate non-spot from spot
+	#	others - SAME
+	#
+	# output: maskR - adjusted maskR for all spots
+	#
+	def adjust(maskR, s, spotR, th, rw, cl, rst, cst, hd, vd, r, dr):
+		for i in range(0, rw):          # spot in row i
+			for j in range(0, cl):  #         col j
+				centerRow = cst + i*vd + (2*i+1)*r
+				centerCol = rst + j*hd + (2*j+1)*r
+				maskR = square(maskR, s, spotR, centerRow, centerCol, dr, th)
+		return maskR
+
+	# black-out areas other than spots - updated on Dec 22
+	# para: mask - blank image same size as warped, drawing panel
+	#	others - SAME
+	#
+	# output: mask - blank image where spot areas are white
+	#
+	def maskD(mask, fold, rw, cl, rst, cst, hd, vd, r, dr):
+		for i in range(0, rw):
+			for j in range(0, cl):
+				curR = rst + j*hd + (2*j+1)*r
+				curC = cst + i*vd + (2*i+1)*r
+				cv2.circle(mask, (curR, curC), dr, (255, 255, 255), -1)
+		show(mask, fold)
+		if cv2.waitKey(0) & 0xFF == ord('a'):
+			return
+		return mask
+	
+	# cover spot using mask with larger radius - approximate process
+	# para: img - (in HSV space) to be roughly processed
+	#	others - SAME
+	#
+	# output: maskR - rough mask where larger-than-spot areas are black, others white
+	#	  spotR - maskR + img (all image here are in HSV space)
+	#
+	def roughProcess(img, fold, rw, cl, rst, cst, hd, vd, r, dr):
+		maskR = np.zeros_like(img)
+		maskR_inv = maskD(maskR, fold, rw, cl, rst, cst, hd, vd, r, dr) # spots white
+		maskR = cv2.bitwise_not(maskR_inv)
+		surR = cv2.add(maskR_inv, img) # spot areas are guaranteed to be white	
+		spotR = cv2.add(maskR, img)    # spot guaranteed to be left, other areas are white
+		return maskR, spotR	       # both in HSV space
+
+
+	maskR, spotR  = roughProcess(warpHSV, fold, rw, cl, rst, cst, hd, vd, r, dr)
+	h, s, v = cv2.split(spotR)
+	if (adj == 1):
+		maskF = adjust(maskR, s, spotR, th, rw, cl, rst, cst, hd, vd, r, dr)
+	else:
+		maskF = maskR
+	maskF_inv = cv2.bitwise_not(maskF)    # precisely only spot areas are white, other areas black
+
+	warp_inv = cv2.bitwise_not(warp)
+	spotF_inv = cv2.add(maskF, warp_inv)
+	spotF = cv2.bitwise_not(spotF_inv)    # precisely spots are maintained, others black
+	show(spotF, fold)
+	if cv2.waitKey(0) & 0xFF == ord('a'):
+		return
+
+	surF_inv = cv2.add(maskF_inv, warp_inv)
+	surF = cv2.bitwise_not(surF_inv)      # precisely spots are black, others maintained
+	show(surF, fold)
+	if cv2.waitKey(0) & 0xFF == ord('a'):
+		return
+
+	return spotF, surF

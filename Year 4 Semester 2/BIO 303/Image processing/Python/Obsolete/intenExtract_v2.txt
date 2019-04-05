@@ -1,0 +1,84 @@
+# 
+# para: warped - perspectively transformed chip area
+# 	fold - display fold
+# 	warped - perspectively transformed chip area
+# 	rw * cl chip
+# 	rst - horizontal distance between left edge and rightmost point of 
+#            larger circle surrounding the first spot
+# 	cst - vertical distance ...
+# 	cext - vertical distance between two surrounding circles in a column
+# 	lr - radis of surrounding circle of spot
+# 	sr - radius of spot
+#
+# output: 
+#
+
+def intenExtract(warped, fold, sz, rw, cl, rst, cst, cext, lr, sr):
+
+	# display resized image
+	def show(img, fold):
+		rsz = cv2.resize(img, None, fx = fold, fy = fold)
+		cv2.imshow('img',rsz)
+
+	# draw spots from intensity extracted - check correctness
+	def restorea(res, fold, rw, cl, rst, cst, cext, lr, sr, warped, sur):
+		panel = np.zeros_like(warped)
+		d = fold * lr
+		r = fold * sr
+		if (sur == 'true'):
+			r = d
+		for i in range(0, rw):
+			for j in range(0, cl):
+				id = i * 6 + j
+				x = rst + (2*j + 1)*d
+				y = cst + (2*i + 1)*d + i*cext
+				panel[y - r: y + r, x - r: x + r] = res[id]
+		show(panel, 1)
+
+	# clear function for single square
+	def clear(res, id, le):
+		for i in range(0, le):
+			for j in range(0, le):
+				if ((res[id][i][j] == [255, 255, 255]).all()):
+					res[id][i][j] = ([0, 0, 0])
+
+	# convert white background to black
+	def nowhite(res, ro, cl, le):
+		for a in range(0, ro):
+			for b in range(0, cl):
+				id = a * 6 + b
+				clear(res, id, le)
+		return res
+
+	# extract intensity values from target area
+	# if isSur -- extract from large square
+	# if !isSur -- extract from minimum square containing spot
+	def inten(merge, fold, rw, cl, rst, cst, cext, lr, sr, isSur):
+		# res = np.empty(shape = (36, 120, 120, 3), dtype = int)
+		res = []
+		d = lr * fold
+		r = sr * fold
+		if (isSur == 'true'):
+			r = d
+		for i in range(0, rw):
+			for j in range(0, cl):
+				x = rst + (2*j + 1)*d
+				y = cst + (2*i + 1)*d + i*cext
+				res.append(merge[y - r: y + r, x - r: x + r])
+		return res
+
+
+	merge, mergeExSpot = spotEx(warped, fold, rsz, rw, cl, rst, cst, cext, lr, sr, th)
+	spot = inten(merge, 1, rw, cl, rst, cst, cext, lr, sr, 'false') # intensity for 36 squares
+	spot = nowhite(spot, rw, cl, 30)                                # intensity for 36 spots
+
+	surr = inten(mergeExSpot, 1, rw, cl, rst, cst, cext, lr, sr, 'true')
+	surr = nowhite(surr, rw, cl, 70)
+	restorea(spot, 1, rw, cl, 0, 0, 0, 35, 15, warped, 'false')
+	if cv2.waitKey(0) & 0xFF == ord('a'):
+		return
+
+	restorea(surr, 1, rw, cl, 0, 0, 0, 35, 15, warped, 'true')
+	if cv2.waitKey(0) & 0xFF == ord('a'):
+		return
+	return spot, surr

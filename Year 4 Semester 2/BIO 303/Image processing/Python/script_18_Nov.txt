@@ -1,0 +1,1021 @@
+import cv2, numpy as np, os
+from matplotlib import pyplot as plt
+os.chdir('wd/antib/181026')
+
+
+
+**** Nov 1 ****
+ret, thresh = cv2.threshold(i1g, 100, 255, 0)
+show(thresh, 0.4)
+plt.imshow(thresh), plt.show()
+
+def cornerF(img, sz, cut):
+	r, c = img.shape
+	res = []
+	for i in range(1, r - 1):
+		for j in range(1, c - 1):
+			if (img[i][j] != 0):
+				continue
+			if (img[i - 1][j] == 255 and img[i + 1][j] == 255):
+				continue
+			if (img[i][j - 1] == 255 and img[i][j + 1] == 255):
+				continue
+			if (img[i - 1][j] == 0 and img[i + 1][j] == 0):
+				continue
+			if (img[i][j - 1] == 0 and img[i][j + 1] == 0):
+				continue
+			res.append((j, i))
+	return res
+
+def test(thresh, c):
+	n = thresh
+	cv2.circle(n, (1078, 63), 30, c, 10)
+	show(n, 0.6)
+
+test(thresh, 50)
+n = thresh
+
+for i in range(0, 100):
+ 	n = cv2.circle(n, (res[i][0], res[i][1]), 1, 150, 1)
+
+
+ret, thresh = cv2.threshold(i1g, 100, 255, 0)
+image, contours, hierarchy = cv2.findContours(thresh,cv2.RETR_TREE,cv2.CHAIN_APPROX_NONE)
+cst = sorted(contours, key = lambda x: cv2.contourArea(x))
+#c2 = max(contours, key=cv2.contourArea)
+mask1 = np.zeros_like(i1g)
+mask1 = cv2.drawContours(mask1, [cst[len(cst) - 1]], -1, (255, 255, 255), -1)
+show(mask1, 0.3)
+
+import cv2, numpy as np, os
+from matplotlib import pyplot as plt
+
+// img(x/col, y/row)
+// img[y/r, x/c]
+// img[y1/r1: y2/r2, ...]
+
+
+**** Nov 2 ****
+os.chdir('wd/antib')
+i1 = cv2.imread('A45.jpg')
+i1g = cv2.cvtColor(i1, cv2.COLOR_BGR2GRAY)
+
+def show(img, fold):
+		rsz = cv2.resize(img, None, fx = fold, fy = fold)
+		cv2.imshow('img',rsz)
+
+def readin(name, thre, i, fold):
+	orig = cv2.imread(name)
+	gray = cv2.cvtColor(orig, cv2.COLOR_BGR2GRAY)
+	ret, thresh = cv2.threshold(gray, thre, 255, 0)	
+	show(thresh, fold)
+	if cv2.waitKey(0) & 0xFF == ord('a'):
+		return
+
+	tinv = cv2.bitwise_not(thresh)
+	show(tinv, fold)
+	if cv2.waitKey(0) & 0xFF == ord('a'):
+		return
+
+	image, contours, hierarchy = cv2.findContours(tinv,cv2.RETR_TREE,cv2.CHAIN_APPROX_SIMPLE)
+	cst = sorted(contours, key = lambda x: cv2.contourArea(x))
+	c1 = cst[len(cst) - i]
+	mask1 = np.zeros_like(gray)
+	mask1 = cv2.drawContours(mask1, [c1], -1, (255, 255, 255), -1)
+	show(mask1, fold)
+	if cv2.waitKey(0) & 0xFF == ord('a'):
+		return
+
+	return c1, gray, orig
+	
+lga45, graya45, origa45 = readin('A45.jpg', 100, 2, 0.1)
+sma45, graya45, origa45 = readin('A45.jpg', 20,1, 0.1)
+warpeda45 = perspTrans(lga45, sma45, origa45, graya45, 0.1)
+
+
+// check mask validity
+def maskD(warped, fold):
+	mask = np.zeros_like(warped)
+	d = 35 * fold
+	r = 15 * fold
+	for i in range(0, 6):
+		for j in range(0, 6):
+			cv2.circle(mask, ((2*j+1)*d, (2*i+1)*d), r, (255, 255, 255), -1)
+	show(mask, 1)
+	return mask
+
+mask_inv = maskD(warpeda45, 1)
+mask = cv2.bitwise_not(mask_inv)
+mergea45 = cv2.add(mask, warpeda45)
+show(mergea45, 1)
+cv2.imshow('a',mergea45)
+
+
+// extract color -- res record horizontally
+def intensity_extract(merge, fold):
+	# res = np.empty(shape = (36, 120, 120, 3), dtype = int)
+	res = []
+	d = 35 * fold
+	r = 15 * fold
+	for i in range(0, 6):
+		for j in range(0, 6):
+			res.append(merge[(2*i+1)*d-r:(2*i+1)*d+r, (2*j+1)*d-r:(2*j+1)*d+r])
+	return res
+
+res = intensity_extract(mergea45, 1)
+
+mask = np.zeros_like(warpeda45)
+cv2.circle(mask, (10, 50), 15, 255, -1)
+mask[10:15, 45:55]
+mask[45:55,10:15] // row/y first
+
+
+// restore extracted spots
+def restores(res, panel, id, lx, hx, ly, hy):
+	for i in range(lx, hx):
+		for j in range(ly, hy):
+			panel[i, j] = res[id][i - lx][j - ly]
+	show(panel, 1)
+OR
+
+def restores(res, panel, id, lx, hx, ly, hy):
+	panel[lx: hx, ly: hy] = res[id]
+	show(panel, 1)
+
+
+restores(res, panel, 0, 20, 50, 20, 50) // spots recorded row first
+panel = np.zeros_like(warpeda45)
+panel[20:50, 20:50] = res[2]
+show(panel, 1)
+
+
+def restorea(res, ro, cl):
+	panel = np.zeros_like(warpeda45)
+	d = 35
+	r = 15
+	for i in range(0, ro):
+		for j in range(0, cl):
+			id = i * 6 + j
+			panel[(2*i+1)*d-r: (2*i+1)*d+r, (2*j+1)*d-r: (2*j+1)*d+r] = res[id]
+	show(panel, 1)
+
+restorea(res, 6, 6)
+
+
+// throw white pixels in spots away
+def clear(res, id, le):
+	for i in range(0, le):
+		for j in range(0, le):
+			if (res[id][i][j][0] == 255 and res[id][i][j][1] == 255 and res[id][i][j][2] == 255):
+				res[id][i][j] = ([0, 0, 0])	
+
+def nowhite(res, ro, cl, le):
+	for a in range(0, ro):
+		for b in range(0, cl):
+			id = a * 6 + b
+			clear(res, id, le)
+	return res
+
+res = nowhite(res, 6, 6, 30)
+
+
+**** Nov 3 ****
+res = intensF('a45.jpg', 100, 20, 2, 1)
+
+def convert(res, a, c):  # a is size of square/spot; c is num of square/spot
+	newres = []
+	for i in range(0, a):
+		for j in range(0, a):
+			id = i * a + j
+			cur = []
+			for s in range(0, c):
+				for k in range(0, 3):
+					cur.append(res[s][i][j][k])
+			newres.append(cur)
+	return newres
+/**
+ * newres is a 900x108 matrix (r*c)
+ * 1st 3 col is RGB for res[0][0][0], 2nd is that for res[1][0][0] ...
+ * res[s][i][j][0/1/2] = newres[i * 30 + j][s * 3 + 0/1/2]
+ */
+
+def wrout(a, c):
+	newres = convert(res, a, c)
+	if (len(newres) != 900):
+		return 1
+	with open('data.csv', 'w', newline = '') as f:
+		writer = csv.writer(f, delimiter = ',')
+		for i in range(0, a):
+			for j in range(0, a):
+				b = writer.writerow(newres[i * a + j])
+wrout(30, 36)
+
+
+**** Nov 5 ****
+lga45, graya45, origa45 = readin('nc45.jpg', 100, 2, 0.1)
+sma45, graya45, origa45 = readin('A45.jpg', 20, 1, 0.1)
+
+res = intensExtract('a45.jpg', 100, 20, 2, 1) *
+res = intenExtract('a45.jpg', 100, 420)
+res = intensExtract('a45n.jpg', 100, 100, 2, 3) *
+
+res = intensF('nc45.jpg', 100, 20, 2, 1)
+res = intensF('nc45n.jpg', 100, 20, 2, 1)
+
+res = intensExtract('nc100n.jpg', 100, 20, 2, 1) *
+res = intensF('tet100n.jpg', 100, 20, 2, 1)
+
+warped = persTrans(lga45, sma45, origa45, graya45, 420, 0.2)
+warped = nonPersTrans(lga45, origa45, graya45, 420, 0.2)
+writeoutImg('res', 'orig', 0.2, 100, 420)
+writeoutIntensity('res', 'orig', 0.2, 100, 420)
+
+import cv2, numpy as np, os, math
+from matplotlib import pyplot as plt
+
+def show(img, fold):
+	rsz = cv2.resize(img, None, fx = fold, fy = fold)
+	cv2.imshow('img',rsz)
+
+
+**** Nov 7 ****
+CNYK
+os.chdir('wd/2018-19FYP/chip_v1')
+i1 = cv2.imread('a45.jpg')
+i1g = cv2.cvtColor(i1, cv2.COLOR_BGR2GRAY)
+show(i1g, 0.3)
+
+out, gray, orig, masko = readin('test3.jpg', 100, 1, 0.4)
+inner, gray, orig, maski = readin('test3.jpg', 100, 2, 0.4)
+hold = np.zeros_like(gray)
+
+	def arrmk(approj):
+		a = np.zeros(shape = (len(approj), 2), dtype = 'int32')
+		for i in range(0, len(approj)):
+			   a[i] = approj[i][0]
+		#a = a.reshape((-1,1,2))
+		return a
+
+	def apprf(maj, value):
+		hold = np.zeros_like(gray)
+		epsilon = value * cv2.arcLength(maj,True)
+		approj = cv2.approxPolyDP(maj,epsilon,True)
+		a = arrmk(approj)
+		cv2.polylines(hold,[a],True,(255, 255, 255))
+		show(hold, 0.4)    #draw contour from found corners
+		return a, hold
+
+crn, hold = apprf(out, 0.05)
+crninmj, holdi = apprf(inner, 0.05)   # $major portion of inner contour
+image, contours, hierarchy = cv2.findContours(holdi,cv2.RETR_TREE,cv2.CHAIN_APPROX_NONE)
+mask = np.zeros_like(gray)
+mask = cv2.drawContours(mask, [contours[0]], -1, (255, 255, 255), -1)
+me = cv2.add(mask, holdi)
+show(me, 0.4)
+cv2.imshow('im',maski)
+
+// extarct white area in mask i that is black in me
+def otherHf(me, maski):
+	x, y = maski.shape
+	res = np.zeros_like(me)
+	for i in range(0, x):
+		for j in range(0, y):
+			if (maski[i, j] == 255 and me[i, j] == 0):
+				res[i, j] = 255
+	return res
+
+
+ohf = otherHf(me, maski)
+show(ohf, 0.4)
+
+image, contours, hierarchy = cv2.findContours(ohf,cv2.RETR_TREE,cv2.CHAIN_APPROX_SIMPLE)
+c = max(contours, key=cv2.contourArea)
+mask = np.zeros_like(gray)
+mask = cv2.drawContours(mask, [c], -1, (255, 255, 255), -1)
+show(mask, 0.4)
+crninmr, holdof = apprf(c, 0.05)     # $the other half of inner contour
+
+def distance(p1, p2):
+	return np.sqrt(((p1[0] - p2[0])**2) + ((p1[1] - p2[1])**2))
+
+// @ para: four corners of the major portion of inner contour
+def shortestD(p1, crninmj):
+	smal = math.inf
+	closep = p1
+	for i in range(0, 4):
+		d = distance(p1, crninmj[i])
+		if (smal > d):
+			smal = d
+			closep = crninmj[i]
+	return smal, closep
+
+shortestD(crninmr[0], crninmj) // test
+
+def unique(crninmr, crninmj):
+	if (len(crninmr) != 3 or len(crninmj) != 4):
+		return 0, 0
+	lg = -math.inf
+	newp = crninmr[0]
+	newpCls = crninmr[0]
+	for i in range(0, 3):
+		smal, closep = shortestD(crninmr[i], crninmj)
+		if (lg < smal):
+			lg = smal
+			newp = crninmr[i]
+			newpCls = closep
+	return newp, newpCls		
+
+newp, newpCls = unique(crninmr, crninmj) // two points of the daunted corner
+
+orcrn = order_points(crn)
+orcrninmj = order_points(crninmj)
+
+def intersectP(p1a, p1b, p2a, p2b):
+	res = p1a
+	k1 = slope(p1a, p1b)
+	b1 = p1a[1] - k1 * p1a[0]
+	k2 = slope(p2a, p2b)
+	b2 = p2a[1] - k2 * p2a[0]
+	
+	res[0] = (b1 - b2) // (k2 - k1)
+	res[1] = ((k1 * res[0] + b1) + (k2 * res[0] + b2)) / 2
+	return res
+
+def findUq(newp, newpCls, orcrninmj):
+	j = 0
+	newpPre = newp
+	newpClsPre = newpCls
+	for i in range(0, 4):
+		if ((orcrninmj[i] == newpCls).all()):
+			j = i
+			if (distance(orcrninmj[(i + 1) % 4], newp) > distance(orcrninmj[(i + 1) % 4], newpCls)):
+				newpPre = orcrninmj[(i + 4 - 1) % 4]
+				newpClsPre = orcrninmj[(i + 1) % 4]
+			else:
+				newpClsPre = orcrninmj[(i + 4 - 1) % 4]
+				newpPre = orcrninmj[(i + 1) % 4]
+	# return newpPre, newpClsPre, j
+
+# newpPre, newpClsPre, newLoc = findUq(newp, newpCls, orcrninmj)
+
+	return intersect(newp, newpPre, newpCls, newpClsPre), j
+
+dtcr, dtcrLoc = findUq(newp, newpCls, orcrninmj)
+intersectP([2, 7], [3, 4], [4, 5], [5, 6])
+
+
+**** Nov 9 ****
+// from web adjust illumiance in one image
+i1 = cv2.imread('A45.jpg')
+i1g = cv2.cvtColor(i1, cv2.COLOR_BGR2GRAY)
+
+#-----Converting image to LAB Color model-----------------------------------
+lab= cv2.cvtColor(i1, cv2.COLOR_BGR2LAB)
+cv2.imshow("lab",lab)
+
+#-----Splitting the LAB image to different channels-------------------------
+l, a, b = cv2.split(lab)
+show(l, 0.1)
+show(a, 0.1)
+show(b, 0.1)
+
+#-----Applying CLAHE to L-channel-------------------------------------------
+clahe = cv2.createCLAHE(clipLimit=3.0, tileGridSize=(8,8))
+cl = clahe.apply(l)
+show(cl, 0.1)
+
+#-----Merge the CLAHE enhanced L-channel with the a and b channel-----------
+limg = cv2.merge((cl,a,b))
+show(limg, 0.1)
+
+#-----Converting image from LAB Color model to RGB model--------------------
+final = cv2.cvtColor(limg, cv2.COLOR_LAB2BGR)
+show(final, 0.1)
+
+### follow script_v5
+a = cv2.rectangle(i1, (1000, 1000), (1500, 1500), (255,0,0), -1)
+show(a, 0.1)
+
+
+**** Nov 10 ****
+lga45, graya45, origa45 = readin('nc45.jpg', 100, 2, 0.1)
+# sma45, graya45, origa45 = readin('A45.jpg', 20, 1, 0.1)
+warped = persTrans(lga45, sma45, origa45, graya45, 420, 0.2)
+warped = nonPersTrans(lga45, origa45, graya45, 420, 0.2)
+cv2.imshow('warped', warped)
+sur = surround(warped, 1)
+res = intensF('nc45.jpg', 100, 20, 2, 1)
+
+// update mask drawing to be generic
+blankSq = np.zeros((520, 360, 3), np.uint8)
+mask = maskDCr(blankSq, 1, 1, 6, 7, 40, 40, 40, 20, 10)
+mask = maskDSq(blankSq, 1, 1, 6, 7, 40, 40, 40, 20, 10)
+
+blankSq = np.zeros((420, 420, 3), np.uint8)
+mask = maskDSq(blankSq, 1, 1, 6, 6, 0, 0, 0, 35, 15)
+sur = surroundEx(warped, 1, 6, 6, 0, 0, 0, 35, 15)
+maskSq_inv = maskDSq(blankSq, 1, 1, 6, 6, 0, 0, 0, 35, 15)
+
+
+**** Nov 11 ****
+// test image partitioning correctness
+mask = maskDSq(blankSq, 1, 1, 6, 1, 0, 0, 0, 35, 15)
+spot = intenSpot(mask, 1, 6, 1, 0, 0, 0, 35, 15)
+// end
+
+spot = intenSpot(merge, 1, 6, 6, 0, 0, 0, 35, 15)
+spot = nowhite(spot, 6, 6, 30)
+surr = intenSurr(mergeExSpot, 1, 6, 6, 0, 0, 0, 35)
+surr = nowhite(surr, 6, 6, 70)
+surr[0][35]
+
+restorea(spot, 1, 6, 6, 0, 0, 0, 35, 15, warped, 'false')
+restorea(spot, 1, 1, 6, 0, 0, 0, 35, 15, warped, 'false')
+restorea(surr, 1, 6, 6, 0, 0, 0, 35, 15, warped, 'true')
+
+spot, surr = intenExtract('nc45.jpg', 100, 420, 6, 6, 0, 0, 0, 35, 15)
+wrout(30, 36, 'nc45spot.csv', spot)
+wrout(70, 36, 'nc45surr.csv', surr)
+
+spot, surr = intenExtract('a45.jpg', 100, 420, 6, 6, 0, 0, 0, 35, 15)
+wrout(30, 36, 'a45spot.csv', spot)
+wrout(70, 36, 'a45surr.csv', surr)
+
+
+**** Nov 12 ****
+os.chdir('wd/2018-19FYP/chip_v2/20181113')
+def readin(name, thre, i, fold):
+		orig = cv2.imread(name)
+		gray = cv2.cvtColor(orig, cv2.COLOR_BGR2GRAY)
+		ret, thresh = cv2.threshold(gray, thre, 255, 0)	
+		show(thresh, fold)
+		cv2.imwrite('thresh.jpg', thresh)
+		if cv2.waitKey(0) & 0xFF == ord('a'):
+			return
+
+		tinv = cv2.bitwise_not(thresh)
+		show(tinv, fold)
+		cv2.imwrite('tinv.jpg', tinv)
+		if cv2.waitKey(0) & 0xFF == ord('a'):
+			return
+
+		image, contours, hierarchy = cv2.findContours(tinv,cv2.RETR_TREE,cv2.CHAIN_APPROX_SIMPLE)
+		cst = sorted(contours, key = lambda x: cv2.contourArea(x))
+		c1 = cst[len(cst) - i]
+		mask1 = np.zeros_like(gray)
+		mask1 = cv2.drawContours(mask1, [c1], -1, (255, 255, 255), -1)
+		show(mask1, fold)
+		cv2.imwrite('mask1.jpg', mask1)
+		if cv2.waitKey(0) & 0xFF == ord('a'):
+			return
+
+		return c1, gray, orig, mask1
+
+chipct, gray, orig, chip = readin('0.jpg', 100, 2, 0.4)
+hold = np.zeros_like(orig)
+epsilon = 0.05*cv2.arcLength(chip, True)
+chipcr = cv2.approxPolyDP(chip, epsilon, True)
+a = arrmk(chipcr)
+cv2.polylines(hold,[a],True,(255,255,255))
+show(hold, fold)
+
+chipcrj, chipcrr = persTransU(chipct, orig, gray, 0.3)
+warped = persTransU(chipct, orig, gray, 0.4, chip)
+
+// test
+def t(name):
+	chipct, gray, orig, chip = readin(name, 100, 2, 0.4)
+	warped = persTransU(chipct, orig, gray, 0.4, chip)
+t('3.jpg') // reflections
+chipct, gray, orig, chip = readin('2.jpg', 100, 2, 0.4)
+
+
+**** Nov 14 ****
+os.chdir('wd/2018-19FYP/chip_v1')
+def readin(name, thre, i, fold):
+	orig = cv2.imread(name)
+	gray = cv2.cvtColor(orig, cv2.COLOR_BGR2GRAY)
+	hsv = cv2.cvtColor(orig, cv2.COLOR_BGR2HSV)
+	ret, thresh = cv2.threshold(gray, thre, 255, 0)	
+	show(thresh, fold)
+	if cv2.waitKey(0) & 0xFF == ord('a'):
+		return
+
+	tinv = cv2.bitwise_not(thresh)
+	show(tinv, fold)
+	if cv2.waitKey(0) & 0xFF == ord('a'):
+		return
+
+	image, contours, hierarchy = cv2.findContours(tinv,cv2.RETR_TREE,cv2.CHAIN_APPROX_SIMPLE)
+	cst = sorted(contours, key = lambda x: cv2.contourArea(x))
+	c1 = cst[len(cst) - i]
+	mask1 = np.zeros_like(gray)
+	mask1 = cv2.drawContours(mask1, [c1], -1, (255, 255, 255), -1)
+	show(mask1, fold)
+	if cv2.waitKey(0) & 0xFF == ord('a'):
+		return
+
+	return orig, gray, hsv, c1, mask1
+
+orig1, gray1, hsv1, chipct1, chip1 = readin('a45.jpg', 100, 2, 0.1)
+orig2, gray2, hsv2, chipct2, chip2 = readin('a45n.jpg', 100, 2, 0.1)
+h1, s1, v1 = cv2.split(hsv1)
+h2, s2, v2 = cv2.split(hsv2)
+
+// to blur texture - for normalization
+a = cv2.bilateralFilter(orig2, 20, 100, 100)
+show(a, 0.3)
+// end
+
+warped = nonPersTrans(chipct1, orig1, gray1, 420, 0.1)
+hsv1 = cv2.cvtColor(warped, cv2.COLOR_BGR2HSV)
+h1, s1, v1 = cv2.split(hsv1)  // s1 can be used to customiz shape for each spot
+show(h, 1)
+plt.imshow(h1)
+plt.show()
+
+warped2 = nonPersTrans(chipct2, orig2, gray2, 420, 0.1)
+hsv2 = cv2.cvtColor(warped2, cv2.COLOR_BGR2HSV)
+h2, s2, v2 = cv2.split(hsv2)
+cv2.imshow('h2',h2)
+
+
+**** Nov 16 ****
+def restore(thre, n):
+	ret, thresh = cv2.threshold(h, thre, 255, 0)
+	show(thresh, 0.5)
+	if cv2.waitKey(0) & 0xFF == ord('a'):
+		return
+	dst = cv2.inpaint(orig, thresh, n, cv2.INPAINT_TELEA)
+	show(dst, 0.5)
+restore(140, 10)
+
+
+**** Nov 17 ****
+rgb = cv2.cvtColor(orig, cv2.COLOR_BGR2RGB)
+hsv = cv2.cvtColor(rgb, cv2.COLOR_RGB2HSV)
+
+from mpl_toolkits.mplot3d import Axes3D
+from matplotlib import cm
+from matplotlib import colors
+
+def ThreeD(h, s, v):
+	pixel_colors = warped.reshape((np.shape(warped)[0]*np.shape(warped)[1], 3))
+	norm = colors.Normalize(vmin=-1.,vmax=1.)
+	norm.autoscale(pixel_colors)
+	pixel_colors = norm(pixel_colors).tolist()
+	fig = plt.figure()
+	axis = fig.add_subplot(1, 1, 1, projection="3d")
+
+	axis.scatter(h1.flatten(), s1.flatten(), v1.flatten(), facecolors=pixel_colors, marker=".")
+	axis.set_xlabel("Hue")
+	axis.set_ylabel("Saturation")
+	axis.set_zlabel("Value")
+	plt.show()
+
+
+ThreeD(h1, s1, v1)
+
+rgb = cv2.cvtColor(warped, cv2.COLOR_BGR2RGB)
+hsv1 = cv2.cvtColor(rgb, cv2.COLOR_RGB2HSV)
+h1, s1, v1 = cv2.split(hsv1)
+show(h, 1)
+plt.imshow(h1)
+plt.show()
+
+// see the whole image via resizing
+rsz = cv2.resize(orig1, None, fx = 0.1, fy = 0.1)
+hsvr = cv2.cvtColor(rsz, cv2.COLOR_BGR2HSV)
+rh, rs, rv = cv2.split(hsvr)
+
+rsz2 = cv2.resize(orig2, None, fx = 0.1, fy = 0.1)
+hsvr2 = cv2.cvtColor(rsz2, cv2.COLOR_BGR2HSV)
+rh2, rs2, rv2 = cv2.split(hsvr2)
+intshow(rv2)
+
+// mask spots
+mask = np.zeros_like(warped)
+mask_inv = maskD(mask, 1, 1, 6, 6, 0, 0, 0, 35, 15)
+mergeExSpot = cv2.add(mask_inv, warped)
+cv2.imshow('exSpot', mergeExSpot)
+hsvm = cv2.cvtColor(mergeExSpot, cv2.COLOR_BGR2HSV)
+he, se, ve = cv2.split(hsvm)
+
+// maximize v channel for warped image
+for i in range(0, 420):
+	for j in range(0, 420):
+		hsv1[i, j][2] = 255
+
+a = cv2.cvtColor(hsv1, cv2.COLOR_HSV2BGR)
+show(a, 1)
+hsv11 = cv2.cvtColor(a, cv2.COLOR_BGR2HSV)
+h11, s11, v11 = cv2.split(a)
+
+// try LAB
+lab = cv2.cvtColor(warped, cv2.COLOR_BGR2LAB)
+l, a, b = cv2.split(lab)
+a = cv2.cvtColor(lab, cv2.COLOR_LAB2BGR)
+show(a, 1)
+
+
+**** Nov 18 ****
+os.chdir('wd/2018-19FYP/chip_v2/20181113')
+orig = cv2.imread('0.jpg')
+gray = cv2.cvtColor(orig, cv2.COLOR_BGR2GRAY)
+hsv = cv2.cvtColor(orig, cv2.COLOR_BGR2HSV)
+lab = cv2.cvtColor(orig, cv2.COLOR_BGR2LAB)
+h, s, v = cv2.split(hsv)
+
+// restore lost border and extract chip -- method 1
+def t(a, v):
+	rw, cl, ch = a.shape
+	for i in range(0, rw):
+		for j in range(0, cl):
+			if (a[i, j][0] >= 190):
+				a[i, j][0] = v
+	a = cv2.cvtColor(a, cv2.COLOR_LAB2BGR)
+	show(a, 0.5)
+
+t(lab, 20)
+
+// restore lost border and extract chip -- method 2
+def restore(gray, thre):
+	inv = cv2.bitwise_not(gray)
+	ret, thresh = cv2.threshold(h, thre, 255, 0)
+	show(thresh, 0.5)
+	if cv2.waitKey(0) & 0xFF == ord('a'):
+		return
+	m = cv2.add(inv, thresh)
+	show(m, 0.5)
+	return m
+
+m = restore(gray, 120)
+res = cv2.bitwise_not(m)
+show(res, 0.5)
+
+ret, thresh = cv2.threshold(res, 100, 255, 0)	
+show(thresh, 0.5)
+tinv = cv2.bitwise_not(thresh)
+image, contours, hierarchy = cv2.findContours(tinv,cv2.RETR_TREE,cv2.CHAIN_APPROX_SIMPLE)
+cst = sorted(contours, key = lambda x: cv2.contourArea(x))
+c1 = cst[len(cst) - 2]
+mask1 = np.zeros_like(gray)
+mask1 = cv2.drawContours(mask1, [c1], -1, (255, 255, 255), -1)
+show(mask1, 0.5)
+
+//
+rs = cv2.resize(h, None, fx = 0.5, fy = 0.5)
+cv2.imshow('rs', rs)
+lab = cv2.cvtColor(orig, cv2.COLOR_BGR2LAB)
+
+// test new img
+def t(name, thre):
+	chipct, gray, orig, chip = readin(name, thre, 2, 0.2)
+	warped = persTransU(chipct, orig, gray, 0.2, chip)
+	return warped
+w4 = t('4.jpg', 70)
+w5 = t('5.jpg', 100)
+
+w4lab = cv2.cvtColor(w4, cv2.COLOR_BGR2LAB)
+w4hsv = cv2.cvtColor(w4, cv2.COLOR_BGR2HSV)
+l4, a4, b4 = cv2.split(w4lab)
+h4, s4, v4 = cv2.split(w4hsv)
+
+
+**** Nov 19 ****
+// illuminance correction
+os.chdir('wd/2018-19FYP/chip_v2/20181116')
+orig = cv2.imread('3.jpg')
+gray = cv2.cvtColor(orig, cv2.COLOR_BGR2GRAY)
+hsv = cv2.cvtColor(orig, cv2.COLOR_BGR2HSV)
+
+th2 = cv2.adaptiveThreshold(gray,255,cv2.ADAPTIVE_THRESH_MEAN_C, cv2.THRESH_BINARY,11,2)
+th3 = cv2.adaptiveThreshold(gray,255,cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY,11,2)
+
+// histogram equalization
+lab = cv2.cvtColor(orig, cv2.COLOR_BGR2LAB)
+lab = cv2.cvtColor(gray, cv2.COLOR_GRAY2LAB)
+
+def restore(orig, n):
+	lab = cv2.cvtColor(orig, cv2.COLOR_BGR2LAB)
+	#l, a, b = cv2.split(lab)
+	#equ = cv2.equalizeHist(l)
+	#clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8,8))
+	#equ = clahe.apply(l)
+	rw, cl, n= lab.shape
+	for i in range(0, 1500):
+		for j in range(0, cl):
+			#lab[i, j][2] = equ[i, j]
+			lab[i, j][0] = n
+	retr = cv2.cvtColor(lab, cv2.COLOR_LAB2BGR)
+	regr = cv2.cvtColor(retr, cv2.COLOR_BGR2GRAY)
+	show(retr, .1)
+	return regr
+
+regr = restore(orig, 20)
+ret, thresh = cv2.threshold(gray, 100, 255, 0)
+show(thresh, 0.1)
+
+ret, thresh = cv2.threshold(regr, 100, 255, 0)
+
+
+**** Nov 20 ****
+os.chdir('wd/2018-19FYP/chip_v2/lightening')
+orig = cv2.imread('4.jpg')
+gray = cv2.cvtColor(orig, cv2.COLOR_BGR2GRAY)
+hsv = cv2.cvtColor(orig, cv2.COLOR_BGR2HSV)
+lab = cv2.cvtColor(orig, cv2.COLOR_BGR2LAB)
+l, a, b = cv2.split(lab)
+h, s, v = cv2.split(hsv)
+
+def t(name):
+	orig = cv2.imread(name)		
+	lab = cv2.cvtColor(orig, cv2.COLOR_BGR2LAB)	
+	plt.imshow(lab)
+	plt.show()
+
+intshow('2.jpg')
+
+ret, thresh = cv2.threshold(l, 20, 255, 0)	
+show(thresh, 0.4)
+
+def t(c):
+	equ = cv2.equalizeHist(c)
+	clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8,8))
+	equ = clahe.apply(c)
+	intshow(c)
+
+
+**** Nov 22 ****
+// hist equaliz
+equ = cv2.equalizeHist(l)
+equ = cv2.equalizeHist(gray)
+
+
+**** Nov 23 ****
+// improve readin to select chip area from detected contours
+chipct, gray, orig, chip = readin('20181119_LB_17_30min.jpg', 100, 3, .1)
+mask1 = np.zeros_like(gray)
+mask1 = cv2.drawContours(mask1, [chipct], -1, (255, 255, 255), -1)
+show(mask1, .1)
+
+hold = np.zeros_like(gray)
+chipcrj, hold = apprf(chipct, .1, .05, hold)
+
+// write out image for 20181119 and 20181121
+writeoutImg('res', '20181119', 0.1, 100)
+writeoutImg('res', '20181121', 0.1, 100)
+
+// color normalization - mask spot then hist norm
+chipct, gray, orig, chip = readin('1.jpg', 100, 2, .1)
+warp = nonPersTrans(chipct, orig, gray, 420, 0.2)
+merge, exSpot = spotEx(warp, 1, 1, 6, 6, 0, 0, 0, 35, 15)
+
+exgray = cv2.cvtColor(exSpot, cv2.COLOR_BGR2GRAY)
+equ = cv2.equalizeHist(exgray)
+exhsv = cv2.cvtColor(exSpot, cv2.COLOR_BGR2HSV)
+h, s, v = cv2.split(exhsv)
+
+exlab = cv2.cvtColor(exSpot, cv2.COLOR_BGR2LAB)
+l, a, b = cv2.split(exlab)
+equ = cv2.equalizeHist(l)
+equa = cv2.merge((equ, a, b))
+
+
+**** Nov 24 ****
+os.chdir('wd/2018-19FYP/chip_v1')
+chipct1, gray1, orig1, chip1 = readin('nc100n.jpg', 100, 2, .1)
+warp1 = nonPersTrans(chipct1, orig1, gray1, 420, .1)
+chipct2, gray2, orig2, chip2 = readin('tet100n.jpg', 100, 2, .1)
+warp2 = nonPersTrans(chipct2, orig2, gray2, 420, .1)
+
+def sumshow(warp1, warp2, flag):
+	hsv1 = cv2.cvtColor(warp1, flag)
+	hsv2 = cv2.cvtColor(warp2, flag)
+	h1, s1, v1 = cv2.split(hsv1)
+	h2, s2, v2 = cv2.split(hsv2)
+	a = np.hstack((h1, s1, v1))	
+	b = np.hstack((h2, s2, v2))
+	res = np.vstack((a, b))
+	intshow(res)
+
+sumshow(warp1, warp2, cv2.COLOR_BGR2HSV)
+sumshow(warp1, warp2, cv2.COLOR_BGR2LAB)
+
+bgr = [190, 190, 190]
+thresh = 40
+minBGR = np.array([bgr[0] - thresh, bgr[1] - thresh, bgr[2] - thresh])
+maxBGR = np.array([bgr[0] + thresh, bgr[1] + thresh, bgr[2] + thresh])
+ 
+maskBGR = cv2.inRange(warp1,minBGR,maxBGR)
+resultBGR = cv2.bitwise_and(warp1, warp1, mask = maskBGR)
+ 
+#convert 1D array to 3D, then convert it to HSV and take the first element 
+# this will be same as shown in the above figure [65, 229, 158]
+hsv = cv2.cvtColor( np.uint8([[bgr]] ), cv2.COLOR_BGR2HSV)[0][0]
+ 
+minHSV = np.array([hsv[0] - thresh, hsv[1] - thresh, hsv[2] - thresh])
+maxHSV = np.array([hsv[0] + thresh, hsv[1] + thresh, hsv[2] + thresh])
+ 
+maskHSV = cv2.inRange(warp1, minHSV, maxHSV)
+resultHSV = cv2.bitwise_and(warp1, warp1, mask = maskHSV)
+
+// density plot
+B = np.array([])
+G = np.array([])
+R = np.array([])
+b = warp1[:,:,0]
+b = b.reshape(b.shape[0]*b.shape[1])
+g = warp1[:,:,1]
+g = g.reshape(g.shape[0]*g.shape[1])
+r = warp1[:,:,2]
+r = r.reshape(r.shape[0]*r.shape[1])
+B = np.append(B,b)
+G = np.append(G,g)
+R = np.append(R,r)
+
+from matplotlib import colors as colors
+
+def den(nbins, nbInString, a, b, labela, labelb):
+	plt.hist2d(a, b, bins=nbins, norm=colors.LogNorm())
+	plt.xlabel(labela)
+	plt.ylabel(labelb)
+	plt.xlim([0,255])
+	plt.ylim([0,255])
+	cb = plt.colorbar()
+	cb.set_label('Counts in bin' + ': ' + nbInString)
+	plt.show()
+
+
+**** Nov 25 ****
+// cover spot from the chip
+merge, es = spotEx(warp1, 1, 1, 6, 6, 0, 0, 0, 35, 15)
+show(es, 1)
+gray = cv2.cvtColor(warp1, cv2.COLOR_BGR2GRAY)
+res = np.array
+
+// element remove attempt 1
+for i in range(0, 420):
+	for j in range(0, 420):
+		if (gray[i, j] > 150):
+			res = np.append(res, gray[i, j])
+
+// attempt 2
+a = np.array([[1, 2, 3], [4, 5, 6]], dtype = 'uint8')
+b = np.delete(a, [1])
+c = slice(0, len(b) - 1, 1)
+d = b[c]
+np.reshape(b, (2, -1))
+ref = []
+for i in range(0, 420):
+	for j in range(0, 420):
+		if (gray[i, j] > 150):
+			ref = np.append(ref, id = i * 420 + j)
+
+// decide to adjust spot area first
+merge, es, mersk = mask_inv = spotEx(warp1, 1, 1, 6, 6, 0, 0, 0, 35, 22) // increase white spot area that guarantee to cover the whole spot
+nps = np.hstack((merge, es, warp1))
+hsv1 = cv2.cvtColor(warp1, cv2.COLOR_BGR2HSV)
+hsv2 = cv2.cvtColor(merge, cv2.COLOR_BGR2HSV)
+hsv3 = cv2.cvtColor(es, cv2.COLOR_BGR2HSV)
+h3, s3, v3 = cv2.split(hsv3) // es < 20 add to spot
+intshow(s3)
+h2, s2, v2 = cv2.split(hsv2) // merge < 20 remove from spot
+intshow(s2)
+
+REFER TO: spotEx()
+mersk = adjust(mersk, s2, merge, 1, 6, 6, 0, 0, 0, 35, 22)
+merge, es, mersk = spotEx(warp1, 1, 1, 6, 6, 0, 0, 0, 35, 22)
+
+
+**** Nov 26 ****
+use warp1 and warp2 generated on Nov 24
+merge1, es1, mersk1 = spotEx(warp1, 1, 1, 6, 6, 0, 0, 0, 35, 22, 20) // th = 20
+merge2, es2, mersk2 = spotEx(warp2, 1, 1, 6, 6, 0, 0, 0, 35, 22, 30) // th = 30
+
+// improve adjust, tmeporarily leave
+cv2.imshow('mersk2',mersk2)
+hsv1 = cv2.cvtColor(warp1, cv2.COLOR_BGR2HSV)
+hsv2 = cv2.cvtColor(warp2, cv2.COLOR_BGR2HSV)
+lab1 = cv2.cvtColor(warp1, cv2.COLOR_BGR2LAB)
+lab2 = cv2.cvtColor(warp2, cv2.COLOR_BGR2LAB)
+a = np.hstack((lab1, lab2))
+b = np.hstack((hsv1, hsv2))
+c = np.vstack((a, b))
+h2, s2, v2 = cv2.split(hsv2)
+l1, a1, b1 = cv2.split(lab1)
+l2, a2, b2 = cv2.split(lab2)
+
+// discard spot from chip - leave panel area, spots are black
+	def DiscdSp(warp, mersk):
+		warv = cv2.bitwise_not(warp)
+		mekv = cv2.bitwise_not(mersk)
+		panev = cv2.add(warv, mekv)
+		panel = cv2.bitwise_not(panev)
+		return panel
+
+p1 = DiscdSp(warp1, mersk1)
+p2 = DiscdSp(warp2, mersk2)
+
+REFER TO: Nov 24 2D plot
+den(30, b1, g1)
+den(30, b1, r1)
+den(30, r1, g1)
+
+b = np.array([0,0,0],dtype= 'uint8')
+(b!=0).any()
+c = np.array([0,0,1],dtype = 'uint8')
+(c!=0).any()
+a = np.array([[0,0,1],[0,0,0],[0,2,4]],dtype = 'uint8')
+(a!=0).any()
+a[(a != 0).any(axis = (1))]
+
+A = np.ones((5, 5, 3))
+# make second of shape (3, 3, 4) = 0
+A[1][1] = 0  # or A[1, ...] = 0; or A[1, :, :, :] = 0
+# find out which are non-zero
+res = np.any(A, axis=(1, 2))
+res = np.any(A, axis=(2))
+
+print(res)
+
+
+**** Nov 27 ****
+// 2D hisogram
+	# para: p - panel, image where spots are black
+	def colSpcConv(nbins, nbstr, astr, bstr, cstr, p, flag, noplot):
+		if (flag != 'false'):
+			p = cv2.cvtColor(p, flag)
+		p = p[(p != 0).any(axis = (2))]
+		a, b, c = p[:,0], p[:,1], p[:,2]
+		if (noplot == 'true'):
+			return a, b, c
+		den(nbins, nbstr, a, b, astr, bstr)
+		den(nbins, nbstr, a, c, astr, cstr)
+		den(nbins, nbstr, b, c, bstr, cstr)
+		return a, b, c
+
+r, g, b = colSpcConv(30, '30', 'R', 'G', 'B', p1, 'false', 'true')
+h, s, v = colSpcConv(30, '30', 'H', 'S', 'V', p1, cv2.COLOR_BGR2HSV, 'false')
+l, a, b = colSpcConv(10, '10', 'L', 'A', 'B', p1, cv2.COLOR_BGR2LAB, 'true')
+
+// blur panel before hist
+blur = cv2.bilateralFilter(p1, 9, 75, 75)
+
+
+**** Nov 29 ****
+// kernel density
+from scipy.stats import gaussian_kde
+def kdeplot(x, y, labelx, labely):
+	# fit an array of size [Ndim, Nsamples]
+	data = np.vstack([x, y])
+	kde = gaussian_kde(data)
+
+	# evaluate on a regular grid
+	xgrid = np.linspace(0, 255, 40)
+	ygrid = np.linspace(0, 255, 40)
+	Xgrid, Ygrid = np.meshgrid(xgrid, ygrid)
+	Z = kde.evaluate(np.vstack([Xgrid.ravel(), Ygrid.ravel()]))
+
+	# Plot the result as an image
+	plt.imshow(Z.reshape(Xgrid.shape),
+        	origin='lower', aspect='auto',
+	        extent=[0, 255, 0, 255],
+        	cmap='Blues')
+	plt.xlabel(labelx)
+	plt.ylabel(labely)
+	cb = plt.colorbar()
+	cb.set_label("density")
+	plt.show()
+
+kdeplot(r, g, 'R', 'G')
+kdeplot(h, v, 'H', 'V')
+
+
+**** Nov 30 ****
+// histogram equ, mask spot with black
+os.chdir('wd/2018-19FYP/chip_v1')
+chipct1, gray1, orig1, chip1 = readin('nc100n.jpg', 100, 2, .1)
+warp1 = nonPersTrans(chipct1, orig1, gray1, 420, .1)
+chipct2, gray2, orig2, chip2 = readin('tet100n.jpg', 100, 2, .1)
+warp2 = nonPersTrans(chipct2, orig2, gray2, 420, .1)
+
+merge1, es1, mersk1 = spotEx(warp1, 1, 1, 6, 6, 0, 0, 0, 35, 22, 20)
+wapv1 = cv2.bitwise_not(warp1)
+merskv1 = cv2.bitwise_not(mersk1)
+inv = cv2.add(wapv1, merskv1)
+a = cv2.bitwise_not(inv)
+
+b = plt.hist(a.ravel(),256,[0,256])
+plt.show()
+gray = cv2.cvtColor(a, cv2.COLOR_BGR2GRAY)
+equ = cv2.equalizeHist(gray)
+b = plt.hist(gray.ravel(),256,[0,256])
+plt.show()
+
+// re explore HSV LAB
+hsv = cv2.cvtColor(warp1, cv2.COLOR_BGR2HSV)
+lab = cv2.cvtColor(warp1, cv2.COLOR_BGR2LAB)
+a = np.hstack((hsv, lab))
+
+REFER Nov 17 - maximize V channel

@@ -1,0 +1,808 @@
+import cv2, numpy as np, os, math, csv
+from matplotlib import pyplot as plt
+from scipy import stats
+
+def show(img, fold):
+	rsz = cv2.resize(img, None, fx = fold, fy = fold)
+	cv2.imshow('img',rsz)
+
+def intshow(i):
+	plt.imshow(i)
+	plt.show()
+
+def getPatch(img, i, j, hoffset, voffset, hdist, vdist, hdd, vdd, r):
+def getPatch(img, i, j, para):
+	rw, cl, hoffset, voffset, hdist, vdist, hdd, vdd, r, dr = para
+	x = hoffset + j*hdist + (2*j+1)*r
+	y = voffset + i*vdist + (2*i+1)*r
+	return np.copy(img[y-vdd: y+vdd, x-hdd: x+hdd])
+
+para = [7, 6, 20, 27, 40, 30, 35, 30, 15, 25]
+os.chdir('wd/2018-19FYP/chip_v2/Benchmarking/20190305/version2')
+
+**** Mar 1 ****
+os.chdir('wd/2018-19FYP/chip_v2')
+
+	def readin(curDir, curChip):
+		for filename in os.listdir(curDir):
+			img = cv2.imread(os.path.join(curDir, filename))
+			if img is not None:
+				curChip.append(img)
+
+	def distanceAll(root):
+		distAll = []
+		curChip = []
+		for dirs in os.listdir(root):
+			del curChip[:]
+			curDir = os.path.join(root, dirs)
+			readin(os.path.join(root, dirs), curChip)
+			# return curChip
+			distCur = []
+			for j in range(0, 2):
+				x, y, z = curChip[j].shape
+				for k in range(2, 8, 2):
+					dist = np.sum((curChip[j]-curChip[j+k])**2, axis = (2))
+					dist = np.sum(np.sqrt(dist)) / (x*y)
+					distCur.append(dist)
+			distAll.append(distCur)
+		return distAll
+
+c = np.sum((b[0]-b[2])**2)
+x,y,z = b[0].shape
+o = np.sum(b[0])
+dist = int(np.sqrt( c / (x * y) ))
+rmse, mape = distanceAll('a')
+
+
+**** Mar 2 ****
+// distance cal
+a = distanceAll('a')
+b = np.array([[1,2,3],[2,3,4]])
+c = np.array([[4,2,5],[2,6,2]])
+
+b = a[0][1:3,1:3,:]
+c = a[1][1:3,1:3,:]
+e = np.sum( np.sqrt((b-c)**2) / b )
+f = np.sqrt(e)
+x, y, z = b.shape
+g = np.sum(np.sqrt((b-c)**2)) / (x*y)
+
+b = a[0]
+c = a[1]
+g = np.sqrt(np.sum((b-c)**2)) / (x*y)
+h = (b-c)**2
+i = np.sum(h, axis = (2))
+
+distAll = distanceAll('a')
+// terminate
+
+// data export for spot
+
+
+**** Mar 3 ****
+os.chdir('wd/2018-19FYP/chip_v2/benchmarking/0')
+orig, gray, chipct, chip, warp, restr = process('t1l1_20190226_2_bench_330lux_4min_TET1.jpg', 100, 0.1)
+orig, gray, chipct, chip, warp, restr = process('t1l2_20190226_2_bench_flash_6min_TET1.jpg', 100, 0.1)
+orig, gray, chipct, chip, warp, restr = process('t1l3_20190226_2_daylight_500lux_13min_TET1.jpg', 100, 0.1)
+orig, gray, chipct, chip, warp, restr = process('t1l4_20190226_2_lighttray_900lux_3min_TET1.jpg', 100, 0.1)
+
+// glare
+orig = cv2.imread('t1l1_20190226_2_bench_330lux_4min_TET1.jpg')
+gray = cv2.cvtColor(orig, cv2.COLOR_BGR2GRAY)
+hsv = cv2.cvtColor(orig, cv2.COLOR_BGR2HSV)
+lab = cv2.cvtColor(orig, cv2.COLOR_BGR2LAB)
+h, s, v = cv2.split(hsv)
+l, a, b = cv2.split(lab)
+def restore(channel, orig, thre):
+	inv = cv2.bitwise_not(orig)
+	cmask = np.full_like(orig, (255,255,255))
+	smask = (channel > thre).astype(np.uint8)
+	cmask = cmask * smask[:,:,None]
+	show(cmask, .1)
+	if cv2.waitKey(0) & 0xFF == ord('a'):
+		return
+	m1 = cv2.add(cmask, inv)
+	show(m1, 0.1)
+	if cv2.waitKey(0) & 0xFF == ord('a'):
+		return
+	res = cv2.bitwise_not(m1)
+	show(res, .1)
+	return res
+
+m = restore(h, orig, 120)
+m = restore(l, orig, 210)
+m = restore(v, orig, 160)
+
+gray = cv2.cvtColor(m, cv2.COLOR_BGR2GRAY)
+
+orig, gray, chipct, chip, warp, restr = process(0, m, 100, .1)
+
+
+**** Mar 4 ****
+orig = cv2.imread('t1l1_20190226_2_bench_330lux_4min_TET1.jpg')
+orig2 = cv2.imread('t1l3_20190226_2_daylight_500lux_13min_TET1.jpg')
+hsv = cv2.cvtColor(orig, cv2.COLOR_BGR2HSV)
+hsv2 = cv2.cvtColor(orig2, cv2.COLOR_BGR2HSV)
+lab = cv2.cvtColor(orig, cv2.COLOR_BGR2LAB)
+lab2 = cv2.cvtColor(orig2, cv2.COLOR_BGR2LAB)
+h, s, v = cv2.split(hsv)
+h2, s2, v2 = cv2.split(hsv2)
+l, a, b = cv2.split(lab)
+l2, a2, b2 = cv2.split(lab2)
+
+// report writing
+orig, gray, chipct, chip, warp, restr = process('t1l2_20190226_2_bench_flash_6min_TET1.jpg', 100, 0.1)
+norm0 = lightAdjust(restr, 7, 6, 20, 27, 40, 30, 35, 30, 15, 25, 2, 1, 1, -1, -1, 0, 0)  # whiteRef
+norm1 = lightAdjust(restr, 7, 6, 20, 27, 40, 30, 35, 30, 15, 25, -1, -1, -1, 0, .1, 1, 0) # whitePat0
+norm2 = lightAdjust(restr, 7, 6, 20, 27, 40, 30, 35, 30, 15, 25, -1, -1, -1, 1, .1, 1, 0) # whitePat1
+norm2 = lightAdjust(restr, 7, 6, 20, 27, 40, 30, 35, 30, 15, 25, -1, -1, -1, 1, .1, 2, 0) # grayWorld
+cv2.imwrite('wr.jpg',norm0)
+cv2.imwrite('wp0.jpg',norm1)
+cv2.imwrite('wp1.jpg',norm2)
+orig, gray, chipct, chip, warp, restr = process('t1l4_20190226_2_lighttray_900lux_3min_TET1.jpg', 100, 0.1)
+
+
+**** Mar 7 ****
+os.chdir('wd/2018-19FYP/chip_v2')
+// process all images and write out
+def name(ip, op):
+	error = []
+	for folder in os.listdir(ip):
+		curin = os.path.join(ip, folder)
+		curout = os.path.join(op, folder)
+		for filename in os.listdir(curin):
+			inname = os.path.join(curin, filename)
+			outname = os.path.join(curout, filename)
+			try:
+				orig, gray, chipct, chip, warp, restr = process(inname, 100, 0.1, 0)
+			except:
+				error.append(inname)
+				cv2.imwrite(outname, np.zeros(shape = (1, 1)))
+				continue
+			cv2.imwrite(outname, restr)
+	return error
+
+a = name('test','test_n')
+orig, gray, chipct, chip, warp, restr = process(a[1], 100, 0.1, 0)
+
+b = name('20190305_lightconditions','20190305_lightconditions_n')
+['20190305_lightconditions\\0\\t1l1_20190305_7_bench_330lux_4min_AMP2.JPG',
+ '20190305_lightconditions\\0\\t2l2_20190305_7_bench_flash_27min_AMP2.JPG',
+ '20190305_lightconditions\\3\\t1l1_20190305_27_bench_330lux_3min_TET0.5.JPG',
+ '20190305_lightconditions\\4\\t1l1_20190305_35_bench_330lux_3min_LB.JPG',
+ '20190305_lightconditions\\4\\t2l1_20190305_35_bench_330lux_23min_LB.JPG',
+ '20190305_lightconditions\\5\\t1l1_20190305_43_bench_330lux_2min_LB.JPG']
+
+
+**** Mar 8 ****
+// handle error images
+orig, gray, chipct, chip, warp, restr = process('20190305_lightconditions\\0\\t1l2_20190305_7_bench_flash_6min_AMP2.JPG', 100, 0.1, 1)
+orig, gray, chipct, chip, warp, restr = process('20190305_lightconditions\\0\\t2l2_20190305_7_bench_flash_27min_AMP2.JPG', 100, 0.1, 1)
+orig, gray, chipct, chip, warp, restr = process(b[1], 100, 0.1, 1)
+
+// test for b[0]
+orig = cv2.imread(b[0])
+orig = cv2.imread('20190305_lightconditions\\0\\t1l2_20190305_7_bench_flash_6min_AMP2.JPG')
+gray = cv2.cvtColor(orig, cv2.COLOR_BGR2GRAY)
+sortedContour = findCountour(gray, 100, .1, 1)
+n = len(sortedContour)
+i = n - 1
+outer = sortedContour[i]
+img = displayContour(outer, np.zeros_like(gray), .1, 1)
+reach, inner = check(outer, thre, fold, gray, display)
+
+	ct = np.zeros_like(gray)
+		epsilon = .05 * cv2.arcLength(outer, True)
+		cr = cv2.approxPolyDP(outer, epsilon, True)
+	if (len(a1) != 4):
+// b[0] border disturbed
+// terminated
+// b[0,2-5] border disturbed
+// b[1] minor chip portion abbreviation error
+
+
+**** Mar 9 ****
+// place hold for unhandled images
+b = ['20190305_lightconditions_n\\0\\t1l1_20190305_7_bench_330lux_4min_AMP2.JPG',
+ '20190305_lightconditions_n\\0\\t2l2_20190305_7_bench_flash_27min_AMP2.JPG',
+ '20190305_lightconditions_n\\3\\t1l1_20190305_27_bench_330lux_3min_TET0.5.JPG',
+ '20190305_lightconditions_n\\4\\t1l1_20190305_35_bench_330lux_3min_LB.JPG',
+ '20190305_lightconditions_n\\4\\t2l1_20190305_35_bench_330lux_23min_LB.JPG',
+ '20190305_lightconditions_n\\5\\t1l1_20190305_43_bench_330lux_2min_LB.JPG']
+for i in range (0, len(b)):
+	cv2.imwrite(b[i], np.zeros(shape = (1,1)))
+
+// distance cal update
+Refer to benchmark_v2-Distance
+
+
+**** Mar 10 ****
+// normalize and write out to folders
+// full testing 
+img = cv2.imread('20190305_lightconditions_n\\1\\t1l1_20190305_18_bench_330lux_3min_TET0.5.JPG')
+para = [7, 6, 20, 27, 40, 30, 35, 30, 15, 25]
+norm0 = lightAdjust(img, para, 0, [2,1,1], -1) # whiteRef
+norm1 = lightAdjust(img, para, 1, [], .1) # whitePat0
+norm2 = lightAdjust(img, para, 2, [], .1) # whitePat1
+
+
+**** Mar 12 ****
+// for images processed by each algorithm
+// 1st dissect spot from patch
+// spotex test
+para = [7, 6, 20, 27, 40, 30, 35, 30, 15, 25]
+spot, sur, spotMask, surMask = spotEx(img, para, 2, 0)
+
+
+**** Mar 13 ****
+// for presentation
+plt.hist(img.ravel(),256,[0,256]); plt.show()
+plt.hist(img.ravel(),256,[100, 200]); plt.show()
+plt.hist(img.ravel(),256,[140, 180]); plt.show()
+plt.hist(img.ravel(),256,[145, 155]); plt.show()
+plt.hist(img.ravel(),256,[148, 152]); plt.show()
+
+// noZero correctness
+a = img[0:10,0:10]
+b = a[(a != 0).all(axis = (2))]
+c = a[(a != 0).any(axis = (2))]
+
+spot = cv2.imread('20190305_lightconditions_wr_dissect\\1\\t2l2_20190305_18_bench_flash_27min_TET0.5_spot.jpg')
+patch = cv2.imread('20190305_lightconditions_wr_dissect\\1\\t2l2_20190305_18_bench_flash_27min_TET0.5_patch.jpg')
+spotDt, patchDt = intenExtract(spot, patch, 1, para) #v4
+
+plt.hist(spotDt[0],256,[0,256]); plt.show()
+plt.hist(spotDt[2],256,[0,256]); plt.show()
+
+s2 = getPatch(spot, 0, 2, para)
+plt.hist(s2.ravel(),256,[0,256]); plt.show()
+
+// check spotEx_v5
+spot, patch, mask = spotEx(img, para, 2)
+
+
+**** Mar 14 ****
+// writeout values
+filename = '20190305_lightconditions_wr_dt\\1\\t2l2_20190305_18_bench_flash_27min_TET0.5_spot.csv'
+
+def convert(dt):
+	newdt = [[],[],[]]
+	for i in range(0, len(dt)):
+		cur = dt[i]
+		a, b = cur.shape
+		for k in range(0, 3):
+			newcur = []
+			for j in range(0, a):
+				newcur.append(dt[i][j][k])
+			newdt.append(np.array(newcur))
+	return np.array(newdt)
+# test
+n = convert(spotDt)
+count = 0
+for i in range(0, 42):
+	count = count + len(spotDt[i])
+# terminated
+
+def wrout(filename, dt):
+	newdt = convert(dt)
+	with open(filename[i], 'w', newline = '') as f:
+		writer = csv.writer(f, delimiter = ',')
+		for i in range(0, len(newdt)):
+			b = writer.writerow(newdt[i])
+
+wrout(filename, spotDt)
+
+
+**** Mar 15 ****
+b = np.reshape(a, (3, 1045))
+// update convert yesterday
+
+
+**** Mar 16 ****
+// 2nd version benchmarking
+os.chdir('wd/2018-19FYP/chip_v2/Benchmarking/20190305/version2')
+img = cv2.imread('20190305_lightconditions/light1/t1l1_20190305_24_bench_330lux_4min_AMP2.jpg')
+inname = '20190305_lightconditions/light1/t1l1_20190305_24_bench_330lux_4min_AMP2.jpg'
+orig, gray, chipct, chip, warp, restr = process(inname, 100, 0.1, 0)
+
+spot = cv2.imread('20190305_lightconditions_spot\\light1\\t1l1_20190305_18_bench_330lux_3min_TET0.5.jpg')
+patch = cv2.imread('20190305_lightconditions_patch\\light1\\t1l1_20190305_18_bench_330lux_3min_TET0.5.jpg')
+spotDt, patchDt = intenExtract(spot, patch, 1, para) #v4
+
+//
+alldt = collect('20190305_lightconditions_patch')
+# alldt[0-2]: light 1-3
+# alldt[i][0-2]: light_i-R/G/B
+# alldt[i][j][k]: block k(/42) of ...
+op = [['/l1r.csv,'/l1g.csv','/l1b.csv'],['/l2r.csv','/l2g.csv','/l2b.csv'],['/l3r.csv','/l3g.csv','/l3b.csv']]
+op = [['/l1r.xls,'/l1g.xls','/l1b.xls'],['/l2r.xls','/l2g.xls','/l2b.xls'],['/l3r.xls','/l3g.xls','/l3b.xls']]
+wrout('20190305_lightconditions_patch', op) # reinitialize op each call
+
+
+**** Mar 17 ****
+// check wrout correctness
+os.chdir('wd/2018-19FYP/chip_v2/Benchmarking/20190305/version2')
+img = cv2.imread('20190305_lightconditions_patch/light1/t1l1_20190305_18_bench_330lux_3min_TET0.5.jpg')
+p1 = getPatch(img, 0, 0, para)
+
+img = cv2.imread('20190305_lightconditions_patch/light1/t2l1_20190305_27_bench_330lux_24min_TET0.5.jpg')
+p26 = getPatch(img, 4, 1, para)
+d = intenExtract(img, para)
+
+img = cv2.imread('20190305_lightconditions_patch/light1/t1l1_20190305_7_bench_330lux_4min_AMP2.jpg')
+dt0 = intenExtract(img, para)
+// proved
+
+
+**** Mar 19 ****
+// analysis in R yesterday, signif diff among blocks
+os.chdir('wd/2018-19FYP/chip_v2/Benchmarking/20190305/version2')
+chip = cv2.imread('20190305_lightconditions_patch/light1/t1l1_20190305_18_bench_330lux_3min_TET0.5.jpg')
+a = plt.hist(chip.ravel(),256,[0,256]); plt.show()
+
+def blockhist(i, j, k):
+	p1 = getPatch(chip, i, j, para)
+	a = plt.hist(p1[:,:,k].ravel(),256,[0,256]); plt.show()
+blockhist(0, 2, 0)
+// for each channel of each block, there are too many pixels close to 0
+
+// evaluate spotEx_v5
+nzchipdt = intenExtract(chip, para)
+a = plt.hist(nzchipdt[:,1],256,[0,256]); plt.show()
+img = cv2.imread('20190305_lightconditions_n/light1/t1l1_20190305_18_bench_330lux_3min_TET0.5.jpg')
+
+def data(block):
+	res = []
+	x, y, z = block.shape
+	for i in range(0, x):
+		for j in range(0, y):
+			res.append(block[i][j])
+	return np.array(res)
+
+def naivenz(blockdt):
+	res = []
+	for i in range(0, len(blockdt)):
+		if ((blockdt[i] != (0, 0, 0)).any()):
+			res.append(blockdt[i])
+	return np.array(res)
+
+
+**** Mar 20 ****
+patch = cv2.imread('20190305_lightconditions_patch/light1/t1l1_20190305_18_bench_330lux_3min_TET0.5.jpg')
+img = cv2.imread('20190305_lightconditions_n/light1/t1l1_20190305_18_bench_330lux_3min_TET0.5.jpg')
+p1 = getPatch(patch, 0, 0, para)
+b1 = getPatch(img, 0, 0, para)
+
+p1dt = data(p1)
+x, y, z = p1.shape
+p1dt = np.reshape(p1, (x*y, z)) # equal effect
+nzp1dt = naivenz(p1dt)
+nzp1dt = p1dt[(p1dt != 0).any(axis = (1))] # same as naive
+
+a = plt.hist(p1dt.ravel(),256,[0,256]); plt.show()  # mask spot
+a = plt.hist(nzp1dt.ravel(),256,[0,256]); plt.show()# remove zero
+a = plt.hist(b1.ravel(),256,[0,256]); plt.show() # original block
+
+// examine spotEx, adjust for each block
+def test(para, b1, cho):
+	rw, cl, rst, cst, hd, vd, hdd, vdd, r, dr = para
+	b1_hsv = cv2.cvtColor(b1, cv2.COLOR_BGR2HSV)
+	cmask = np.zeros_like(b1)
+	cmask = cv2.circle(cmask, (hdd, vdd), dr, (255, 255, 255), -1)
+	# a = plt.hist(b1.ravel(),256,[0,256]); plt.show()
+	# a = plt.hist(cmask.ravel(),256,[0,256]); plt.show()
+
+	surE, spotE = cover(b1, hdd, vdd, dr)
+	spotE_hsv = cv2.cvtColor(spotE, cv2.COLOR_BGR2HSV)
+	# a = plt.hist(surE.ravel(),256,[0,256]); plt.show()
+
+	msl = white(surE_hsv)
+	msh = white(spotE_hsv)
+	ts = 0
+	if (cho == 0):
+		ts = (msl + msh) / 2
+	elif (cho == 1):
+		ts = msl
+	else:
+		ts = msh
+	smask = (b1_hsv[:,:,1] > ts).astype(np.uint8)
+	cmask1 = cmask * smask[:,:,None]
+	# a = plt.hist(cmask1.ravel(),256,[0,256]); plt.show()
+
+	ns1 = maskInvAdd(cmask1, b1)
+	negmask = cv2.bitwise_not(cmask1)
+	np1 = maskInvAdd(negmask, b1)
+	return msl, msh, ns1, np1
+
+msh, ns1, np1 = test(para, b1, 2)
+a = plt.hist(np1.ravel(),256,[0,256]); plt.show()  # newly generated, block based
+a = plt.hist(p1dt.ravel(),256,[0,256]); plt.show() # cached img dt
+a = plt.hist(p1.ravel(),256,[0,256]); plt.show()   # cached img
+
+spot, patch, mask = spotEx(img, para, 2)           # newly generated, whole chip
+pp1 = getPatch(patch, 0, 0, para)
+hsvpp1 = cv2.cvtColor(pp1, cv2.COLOR_BGR2HSV)
+hsvb1 = cv2.cvtColor(b1, cv2.COLOR_BGR2HSV)
+a = plt.hist(pp1.ravel(),256,[0,256]); plt.show()
+
+// compare with undissected
+def draw(img):
+	dt = np.reshape(img, (x*y, z))
+	nzdt = dt[(dt != 0).any(axis = (1))]
+	# a = plt.hist(dt[:,0],256,[0,256]); plt.show()
+	a = plt.hist(nzdt[:,0],256,[0,256]); plt.show()
+
+draw(pp1)
+draw(b1)
+pp2 = getPatch(patch, 0, 1, para)
+draw(pp2)
+
+// use diff s thre for patch and spot
+b2 = getPatch(img, 0, 1, para)
+msl, msh, ns1, np1 = test(para, b2, 1)
+spot, patch, mask = spotEx(img, para, 1)
+
+
+**** Mar 21 ****
+hsvimg = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
+h,s,v = cv2.split(hsvimg)
+a = cv2.merge((h, s))
+rw, cl, rst, cst, hd, vd, hdd, vdd, r, dr = para
+
+def thre(img, hsvimg, c, th):
+	cmask = np.zeros_like(img)
+	for i in range(0, rw):          # spot in row i
+		for j in range(0, cl):  #         col j
+			cr = cst + i*vd + (2*i+1)*r
+			cc = rst + j*hd + (2*j+1)*r
+			cmask = cv2.circle(cmask, (cc, cr), dr, (255, 255, 255), -1)
+	mask = (hsvimg[:,:,c] > th).astype(np.uint8)
+	cmask = cmask * mask[:,:,None]
+	res = maskInvAdd(img, cmask)
+	show(res, 1)
+	return res
+
+a = thre(img, hsvimg, 1, 10)
+
+// examine hue channel
+os.chdir('wd/2018-19FYP/chip_v2/Benchmarking/20190305/version2/20190305_lightconditions_n/light1')
+def hex(name):
+	a = cv2.imread(name)
+	hsv = cv2.cvtColor(a, cv2.COLOR_BGR2HSV)
+	h,s,v = cv2.split(hsv)
+	intshow(h)
+	intshow(s)
+name = ['t1l1_20190305_24_bench_330lux_4min_AMP2.jpg','t2l1_20190305_7_bench_330lux_25min_AMP2.jpg',
+'t2l1_20190305_18_bench_330lux_25min_TET0.5.jpg','t2l1_20190305_24_bench_330lux_25min_AMP2.jpg',
+'t2l1_20190305_27_bench_330lux_24min_TET0.5.jpg','t2l1_20190305_43_bench_330lux_23min_LB.jpg']
+hex(name[0])
+
+
+**** Mar 22 ****
+// improve spotEx
+img = cv2.imread('20190305_lightconditions_n/light3/t2l3_20190305_7_lighttray_900lux_22min_AMP2.jpg')
+hsvimg = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
+h,s,v = cv2.split(hsvimg)
+labimg = cv2.cvtColor(img, cv2.COLOR_BGR2LAB)
+l,a,b = cv2.split(labimg)
+
+para = [7, 6, 20, 27, 40, 30, 35, 30, 15, 30]
+rw, cl, rst, cst, hd, vd, hdd, vdd, r, dr = para
+def maskD(img):
+	mask = np.zeros_like(img)
+	for i in range(0, rw):
+		for j in range(0, cl):
+			cr = cst + i*vd + (2*i+1)*r
+			cc = rst + j*hd + (2*j+1)*r
+			cv2.circle(mask, (cc, cr), dr, (255, 255, 255), -1)
+	merge = cv2.add(mask, img)
+	show(merge, 1)
+	return mask, merge
+
+mask, merge = maskD(img)
+spot, patch, mask, msls, mshs = spotEx(img, para, 2)
+b3 = getPatch(img, 0, 2, para)
+b3hsv = cv2.cvtColor(b3, cv2.COLOR_BGR2HSV)
+a = thre(img, hsvimg, 1, 10)
+
+# investigate thre on H channel
+spot, patch, mask, msls, mshs = spotEx(img, para, 0, 2) # v6
+
+# test on more imgs
+os.chdir('20190305_lightconditions_n')
+imgs = ['light1/t1l1_20190305_24_bench_330lux_4min_AMP2.jpg','light1/t2l1_20190305_7_bench_330lux_25min_AMP2.jpg',
+	'light2/t2l1_20190305_7_bench_330lux_25min_AMP2.jpg','light3/t2l3_20190305_35_lighttray_900lux_20min_LB.jpg',
+	'light3/t2l3_20190305_24_lighttray_900lux_22min_AMP2.jpg','light3/t1l3_20190305_24_lighttray_900lux_2min_AMP2.jpg'
+	]
+img = cv2.imread(imgs[2])
+spot, patch, mask, mpfs, msfs, msrs = spotEx(img, para, 0, 2)
+
+
+**** Mar 23 ****
+// clean up outlier
+img = cv2.imread('20190305_lightconditions_n/light1/t1l1_20190305_18_bench_330lux_3min_TET0.5.jpg')
+spot, patch, mask, mpfs, msfs, msrs = spotEx(img, para, 0, 3)
+hsvimg = cv2.cvtColor(warp, cv2.COLOR_BGR2HSV)
+h,s,v = cv2.split(hsvimg)
+labimg = cv2.cvtColor(warp, cv2.COLOR_BGR2LAB)
+p1 = getPatch(patch, 0, 0, para)
+draw(p1) # defined in Mar 20
+
+
+**** Mar 24 ****
+// investigate hist of patch
+def draw(img):
+	x,y,z = img.shape
+	dt = np.reshape(img, (x*y, z))
+	nzdt = dt[(dt != 0).any(axis = (1))]
+	a = plt.hist(nzdt[:,0],256,[0,256]); plt.show()
+
+def patchHist(img, pl):
+	for i in range(0, len(pl)):
+		i,j = pl[i]
+		p1 = getPatch(img, i, j, para)
+		draw(p1)
+
+name = ['20190305_lightconditions_patch/light1/t2l1_20190305_43_bench_330lux_23min_LB.jpg',
+	'20190305_lightconditions_patch/light1/t2l1_20190305_24_bench_330lux_25min_AMP2.jpg',
+	'20190305_lightconditions_wr/light2/t1l2_20190305_7_bench_flash_6min_AMP2.jpg',
+	'20190305_lightconditions_n/light2/t1l2_20190305_18_bench_flash_6min_TET0.5.jpg']
+img = cv2.imread(name[0])
+patchHist(img,[[0,0],[0,1]]) # prefectly dissected patch should have only one peak
+
+img = cv2.imread(name[1])
+patchHist(img, [[1,3],[1,4],[1,5],[5,1]])
+patchHist(img, [[0,0],[0,1],[1,0],[2,1]])
+
+img = cv2.imread(name[2]) # wr img, patch almost purely white
+patchHist(img, [[0,0],[1,0],[6,1]])
+
+img = cv2.imread(name[3])
+patchHist(img, [[0,0],[0,3],[0,5],[2,0],[3,1],[4,3],[6,2],[6,5]])
+
+# normal block (not dissected) should have two peaks
+
+
+**** Mar 25 ****
+// manipulate hist, smooth, peak disclose
+img = cv2.imread(name[3])
+p1 = getPatch(img, 6, 5, para)
+x,y,z = p1.shape
+dt = np.reshape(p1, (x*y, z))
+hist,bins = np.histogram(dt[:,0],256,[0,256])
+# failed
+blur = cv2.GaussianBlur(hist, (9,9), 0)
+blur = cv2.GaussianBlur(hist,(9,9),cv2.BORDER_DEFAULT)
+
+// ** functions used below stored in benchmarking_v3
+nhist = smooth(hist)
+drawHist(nhist, '') # switch to display mode
+nhist = recur(hist, 10, 0)
+draw(p1) # orig hist for p1
+
+// smooth hist for selected channels
+hsvp1 = cv2.cvtColor(p1, cv2.COLOR_BGR2HSV)
+plotHist(hsvp1, 0, 0, '') # impossible to dissect, unimodal
+
+// plot hist for selected patches_refer to benchmarking_v3
+def histSel(img, pl):
+	for i in range(0, len(pl)):
+		x, y = pl[i]
+		cp = getPatch(img, x, y, para)
+		plotHist(cp, 0, 20)
+
+histSel(img, [[0,0],[0,3],[0,5],[2,0],[3,1],[4,3],[6,2],[6,5]])
+
+// automatic smooth and peak detection for biomodal distribution
+def peak(hist):
+	res = []
+	for i in range(1, 255): # hist vals 0->255, check here 1->254
+		if (hist[i] > hist[i-1] and hist[i] > hist[i+1]):
+			res.append(i)
+	res.append(len(res))
+	return res
+a = peak(hist)
+
+
+**** Mar 26 ****
+// improve process(v3) to black-out glares and black borders, data clean up
+inname = '20190305_lightconditions/light1/t2l1_20190305_07_bench_330lux_25min_AMP2.jpg'
+orig, gray, chipct, chip, warp, restr = process(inname, 100, 0.1, 0)
+# hist for L channel of the whole warp
+labwarp = cv2.cvtColor(warp, cv2.COLOR_BGR2LAB)
+nhist = histogram(labwarp, 0, 0, 0, '', 1)
+
+// refer to remediate in process_v3, cover glares
+thb, thg, a = remediate(warp, 0, 1)
+
+
+**** Mar 27 ****
+// accumulate hist
+thb, thg, a = remediate(warp, 1, 0, 20, 190)
+labwarp = cv2.cvtColor(warp, cv2.COLOR_BGR2LAB)
+nhist = histogram(labwarp, 0, 0, 0, '', 1, 1)
+
+// glare removal necessity
+img = cv2.imread('20190305_lightconditions_t/light2/t1l2_20190305_18_bench_flash_6min_TET0.5.jpg')
+labimg = cv2.cvtColor(img, cv2.COLOR_BGR2LAB)
+nhist = histogram(labimg, 0, 0, 0, '', 1, 0)
+# bright region would treated as glare, unsafe, abort
+
+# should be safe as threshold derived from whole chip
+# instead of local block - Mar 28
+
+// rough masking and then hist to derive a rough value for hist peak
+b18 = getPatch(img, 2, 5, para)
+nhist = histogram(p18, 0, 20, 0, '', 1, 0)
+para = [7, 6, 20, 27, 40, 30, 35, 30, 15, 25]
+rw, cl, rst, cst, hd, vd, hdd, vdd, r, dr = para
+
+	def mask(block, dr):
+		x, y, z = block.shape
+		mask = np.zeros_like(block)
+		mask_inv = cv2.circle(mask, (hdd, vdd), dr, (255, 255, 255), -1)
+		mask = cv2.bitwise_not(mask_inv)
+		patch = maskInvAdd(mask, block)
+		spot = maskInvAdd(mask_inv, block)
+
+		pdt = np.reshape(patch, (x*y, z))
+		pdt = pdt[(pdt != 0).any(axis = (1))]
+		sdt = np.reshape(spot, (x*y, z))
+		sdt = sdt[(sdt != 0).any(axis = (1))]
+		return spot, patch, sdt, pdt
+
+
+**** Mar 28 ****
+// histogram peak detection
+b18 = getPatch(img, 2, 5, para)
+nhist = histogram(b18, 0, 0, 0, '', 1, 0)
+nhist = histogram(b18, 0, 1, 0, '', 1, 0)
+
+# mask
+s18, p18, s18dt, p18dt = mask(b18, 35) # largest circle enclosed in block
+bhist = histogram(b18, 0, 0, 20, 0, '', 1, 0) # v2
+phist = histogram(p18dt, 1, 0, 0, 0, '', 1, 0)
+shist = histogram(s18dt, 1, 0, 0, 0, '', 1, 0)
+
+
+s18, p18, s18dt, p18dt = mask(b18, 35)
+shist = histogram(s18dt, 1, 0, 0, 0, '', 1, 0)
+s18, p18, s18dt, p18dt = mask(b18, 25)
+shist = histogram(s18dt, 1, 0, 0, 0, '', 1, 0)
+
+// find peaks_v1
+	def peak(hist, n):
+		res = []
+		for i in range(n, len(hist) - n):
+			# all ready shrinked to upstream inten
+			if (hist[i] == hist[i - 1]):
+				continue
+			# shrink an array of inten with same freq to one value
+			hi = i
+			while (hi < len(hist) - n and hist[hi] == hist[hi + 1]):
+				hi = hi + 1
+			cm = max( max(hist[i-n:i]), max(hist[hi+1:hi+n+1]) )
+			if (hist[i] > cm):
+				res.append(i)
+		return res
+
+# peak detection on unsmoothed hist
+nhist = histogram(b18, 0, 1, 0, '', 1, 0)
+res = peak(nhist, 2)
+
+# other blocks
+b1 = getPatch(img, 0, 0, para)
+nhist = histogram(b1, 0, 0, 0, 1, '', 1, 0) # v2_certain black noise
+s1, p1, s1dt, p1dt = mask(b1, 30) # core area
+shist = histogram(s1dt, 1, 0, 0, 0, '', 1, 0) # v2
+
+res = peak(nhist, 7) # v1 peaks failed, v2 refer to histogram_v3
+res = peak(shist, 7)
+
+// implement refer to histogram_v3 - test here
+# histogram(block, isdt, ch, ns, save, name, show, plot, analyze)
+# test drawing
+nhist = histogram(b1, 0, 0, 0, 0, '', 1, 1, 0)
+
+# test peak detection
+hist, idw, ids = histogram(b1, 0, 0, 0, 0, '', 1, 0, 1)
+
+
+**** Mar 29 ****
+// peak detection correctness check
+refer to benchmarking_v3
+-20190305_lightconditions_n/light1/t1l1_20190305_24_bench_330lux_4min_AMP2.jpg'
+-patch: 5, 8, 14, 15, 20?, 26, 28, 30, 37
+
+-patch 5, 36
+
+-20190305_lightconditions_n_hist/light2/t1l2_20190305_07_bench_flash_6min_AMP2.jpg
+-patch 5, 
+
+# wp1&2 maintains biomodal distribution, wr competely distupr, better abandon
+
+# leave later
+# improve: 1) for the spot peak, take the largest peak apart from peak w instead of the
+# 	   closest to peak w;
+#	   2) or if can delete the major peak totally
+#	   3) need to remove glares and borders which also good to normalization
+#	   4) unforseen failures detecting peaks of wp1&2
+
+// output peak data
+refer to benchmark_v3_tested here
+img = cv2.imread('20190305_lightconditions_t/light1/t1l1_20190305_18_bench_330lux_3min_TET0.5.jpg')
+a = []
+b = []
+allBlocks(img, a, b)
+
+s, p = peakCollect('20190305_lightconditions_t')
+# s[0], light1
+# s[0][0], 1st img in light 1
+# s[0][0][0], block_0
+# s[0][0][0][0], R value of block_0
+
+
+def wrout(s, p, ip, op):
+	# s, p = peakCollect(ip)
+	wroutIndivid(s, op[1])
+	wroutIndivid(p, op[2])
+# do not use '.xls' (each row into one cell)
+op = ['20190305_lightconditions_dt/spot.csv', '20190305_lightconditions_dt/patch.csv']
+wrout(s, p, '20190305_lightconditions_t', op)
+
+
+// glare and black border removal
+# glare
+img = cv2.imread('20190305_lightconditions_t/light1/t2l1_20190305_7_bench_330lux_25min_AMP2.jpg')
+b6 = getPatch(img, 0, 5, para)
+lab = cv2.cvtColor(img, cv2.COLOR_BGR2LAB)
+nhist = histogram(b6, 0, 0, 0, 1, '', 1, 0) # v2
+nhist = histogram(lab, 0, 0, 0, 1, '', 1, 0) # v2
+b6hist, b6w, b6s = histogram(b6, 0, 0, 0, 0, '', 1, 0, 1) # v3
+
+
+**** Mar 31 ****
+// add histogram based normalization (lightadjust_v5)
+img = cv2.imread('20190305_lightconditions_n/light1/t2l1_20190305_07_bench_330lux_25min_AMP2.jpg')
+# channel wise
+cb1 = np.copy(b1)
+x, y, z = cb1.shape
+cb1 = np.reshape(cb1, (x*y, z))
+cb1[:,0] = cb1[:,0] + 10
+
+# test
+pdt = []
+sdt = []
+nb1, pdt, sdt = histBased(b1, pdt, sdt, 200)
+
+# verify
+b1 = getPatch(img, 0, 0, para)
+b1hist, b1wr, b1sr = histogram(b1, 0, 0, 0, 0, '', 1, 0, 1) # v3
+b1hist, b1wg, b1sg = histogram(b1, 0, 1, 0, 0, '', 1, 0, 1) # v3
+b1hist, b1wb, b1sb = histogram(b1, 0, 2, 0, 0, '', 1, 0, 1) # v3
+
+# test
+nimg, pdt, sdt = lightAdjust(img, para, 0, 0, 200) # lightadjust_v5, histbased
+nimg, pdt, sdt = lightAdjust(img, para, 1, .1, 200) # lightadjust_v5, wp1
+nimg, pdt, sdt = lightAdjust(img, para, 2, .1, 200) # lightadjust_v5, wp2
+# require high acuracy of peak detection
+
+// integrate data collect into mass normalization (benchmark_v4)
+# test
+ip = '20190305_lightconditions_t2'
+op = '20190305_lightconditions_nhb'
+pdt, sdt = normCollect(ip, op, para, 0, .1, 200, (42, 3))
+
+algr = ['histogramBased','whitePatch1', 'whitePatch2']
+nm = ['_patch_blockWise.csv','_spot_blockWise.csv']
+op = '20190305_lightconditions_dt/'
+wrout(pdt, sdt, algr[0], nm, op)
+
+// output data, img-wise (benchmark_v4)
+label = [1, 2, 1, 1, 1, 2, 2, 3, 2, 3, 3, 2, 1, 2, 2, 2, 1, 1, 1, 1, 2, 1, 2, 1, 1, 1, 2, 2, 3, 2, 3, 3, 2, 1, 2, 2, 2, 1, 1, 1, 1, 2]
+dt = spotGpPeak(nimg, para, label, 1)
+dthist = histogram(dt, 1, 0, 0, 0, '', 1, 1, 0) # plot
+dthist, wr, sr = histogram(dt, 1, 0, 0, 0, '', 1, 0, 1) # peak
+
+
+

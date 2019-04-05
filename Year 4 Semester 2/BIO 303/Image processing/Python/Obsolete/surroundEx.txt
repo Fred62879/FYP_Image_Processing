@@ -1,0 +1,79 @@
+#
+# para: warped - perspectively transformed chip
+# 	rsz - display fold
+# 	warped - perspectively transformed chip area
+# 	rw * cl chip
+# 	rst - horizontal distance between left edge and rightmost point of 
+#            larger circle surrounding the first spot
+# 	cst - vertical distance ...
+# 	cext - vertical distance between two surrounding circles in a column
+# 	lr - radis of surrounding circle of spot
+# 	sr - radius of spot
+#
+# output: 
+#
+
+def surroundEx(warped, rsz, rw, cl, rst, cst, cext, lr, sr):
+
+	# generate circle mask
+	# para: fold - ratio of mask size over 420
+	#
+	# output: black image with rw * cl many white circles
+	#
+	def maskDCr(mask, fold, rsz, rw, cl, rst, cst, cext, lr, sr):
+		d = lr * fold
+		r = sr * fold
+		for i in range(0, rw):
+			for j in range(0, cl):
+				cv2.circle(mask, (rst + (2*j+1)*d, cst + (2*i+1)*d + i * cext), r, (255, 255, 255), -1)
+		show(mask, rsz)
+		if cv2.waitKey(0) & 0xFF == ord('a'):
+			return
+		return mask
+
+	# generate square mask
+	# para: same as those for the whole function
+	# 
+	# output: black image with rw * cl many white squares
+	#
+	def maskDSq(mask, fold, rsz, rw, cl, rst, cst, cext, lr, sr):
+		r = sr * fold
+		d = lr * fold
+		for i in range(0, rw):
+			for j in range(0, cl):
+				x = rst + (2*j+1)*d
+				y = cst + (2*i+1)*d + i * cext
+				cv2.rectangle(mask, (x - r, y - r), (x + r, y + r), (255, 255, 255), -1)
+		show(mask, rsz)
+		if cv2.waitKey(0) & 0xFF == ord('a'):
+			return
+		return mask
+
+	# extract surrounding area of the spot for lighting normalization
+	# para: same as those for the whole function
+	#
+	# output: black image with rw * cl many white squares
+	#	  each square is actually only white in areas excluding its largest enclosing circle
+	#
+	def surround(warped, rsz, rw, cl, rst, cst, cext, lr, sr):
+		x, y, c = img.shape
+		blankSq = np.zeros((x, y, c), np.uint8)
+		maskSq_inv = maskDSq(blankSq, 1, rsz, rw, cl, rst, cst, cext, lr, sr)
+		maskSq = cv2.bitwise_not(maskSq_inv)
+		show(maskSq, rsz)
+		if cv2.waitKey(0) & 0xFF == ord('a'):
+			return
+		maskSur_inv = maskDCr(maskSq, 1, rsz, rw, cl, rst, cst, cext, lr, sr)
+		maskSur = cv2.bitwise_not(maskSur_inv)
+		show(maskSur_inv, rsz)
+		if cv2.waitKey(0) & 0xFF == ord('a'):
+			return
+		sur = cv2.add(maskSur_inv, img)
+		show(sur, rsz)
+		if cv2.waitKey(0) & 0xFF == ord('a'):
+			return
+		return sur
+	
+	# 
+	sur = surround(warped, rsz, rw, cl, rst, cst, cext, lr, sr)
+	return sur

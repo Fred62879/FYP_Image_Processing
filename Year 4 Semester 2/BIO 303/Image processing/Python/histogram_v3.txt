@@ -1,0 +1,147 @@
+# derive peaks from hist generated, updated on Mar 27 2019
+# enable non img input for analysis, Mar 31 2019
+# remove 0 pixels when calculate histogrma Apr 4 2019
+# para: block - img/dt for histogramming
+#	isdt - whether img is processed data
+#	ch - channels to draw the histogram
+#	ns - # of times to smooth
+#	save - whether save histogram or not
+#	name - if save == 1, then dir to be saved
+#	show - whether display histogram or not
+#
+#	plot - plot histogram or not (entail either save or show or both)
+#	analyze - do peak detection or not
+
+def histogram(block, isdt, ch, ns, save, name, show, plot, analyze):
+	
+	# one-time smooth for given hist
+	def smooth(hist):
+		new = np.zeros_like(hist)
+		new[0] = hist[0]
+		new[len(hist) - 1] = hist[len(hist) - 1]
+		for i in range(1, len(hist) - 2):
+			new[i] = (hist[i - 1] + hist[i] + hist[i + 1]) / 3
+		return new
+
+	# recursively smooth hist for n times
+	def recur(hist, n):
+		res = np.copy(hist)
+		for i in range(0, n):
+			res = smooth(res)
+		return res
+
+	# draw histogram using hist, save to given dir or display
+	def drawHist(hist, name, save, show):
+		plt.plot(hist)
+		plt.xlim([0,256])
+		if (save == 1):
+			plt.savefig(name)
+		if (show == 1):
+			plt.show()
+		plt.close()
+
+	# draw hist for img and smooth for selected channels
+	# para: dt - img/dt for histogramming
+	#	isdt - whether img is processed data
+	#	ch - channels to draw the histogram
+	#	ns - # of times to smooth
+	#	save - whether save histogram or not
+	#	name - if save == 1, then dir to be saved
+	#	show - whether display histogram or not
+	#
+	def plotHist(dt, isdt, ch, ns, save, name, show):
+		if (isdt == 0):
+			x, y, z = dt.shape
+			dt = np.reshape(dt, (x*y, z))
+		dt = dt[(dt != 0).all(axis = (1))]
+		hist,bins = np.histogram(dt[:, ch],256,[0,256]) # 'ch' channel
+		nhist = recur(hist, ns)
+		drawHist(nhist, name, save, show)
+		return nhist
+
+
+
+	# detect and return all peaks in hist
+	# count from i right/left_ward, if, excluding identical inten,
+	# n consecutive smaller inten can be found, then left/right success
+	def peak(hist, n):
+		res = []
+		hi = 0
+		for i in range(n, len(hist) - n):
+			if (i <= hi):
+				continue
+			lo = i
+			hi = i
+			count = n
+			# leftward check, if exist n smaller (exclud equal)
+			while (lo >= 0 and count > 0):
+				if (hist[lo - 1] > hist[i]): # leftward check failed
+					break
+				if (hist[lo - 1] < hist[i]):
+					count = count - 1
+				lo = lo - 1
+			if (count != 0): # leftward check failed
+				hi = i
+				continue
+
+			# rightward check
+			count = n
+			while (hi < len(hist) - n and count > 0):
+				if (hist[hi + 1] > hist[i]):
+					break
+				if (hist[hi + 1] < hist[i]):
+					count = count - 1
+				hi = hi + 1
+			if (count != 0): # rightward check failed
+				hi = i
+				continue
+
+			# pass checks
+			res.append(i)
+		return res
+
+	# detect spot and white area peak
+	# para: block - block/block data under investigation
+	#	ch - channels to derive peak
+	#
+	def analysis(dt, isdt, ch):
+		# calculate histogram for current block
+		if (isdt == 0):
+			x, y, z = dt.shape
+			dt = np.reshape(dt, (x*y, z))
+		dt = dt[(dt != 0).all(axis = (1))]
+		orighist,bins = np.histogram(dt[:, ch], 256, [0, 256]) # 'ch' channel
+
+		postuwp = max(orighist) # postulated white peak value
+		idpostuwp = 0           # id of postulated white peak
+		for i in range(0, 255):
+			if (orighist[i] == postuwp):
+				idpostuwp = i
+
+		# detect peaks until <= 5 are detected
+		res = []  # array of peaks
+		for i in range(10, 100):
+			res = peak(orighist, i)
+			if (len(res) <= 5):
+				break
+		
+		# locate two peaks
+		idsp = 0  # id of spot peak in res
+		idwp = 0  # id of white peak in res
+		min = 255
+		for i in range(1, len(res)):
+			if (idpostuwp < res[i]):
+				break
+			if (min > idpostuwp - res[i]):
+				min = idpostuwp - res[i]
+				idwp = i
+				idsp = i - 1
+		
+		return orighist, res[idwp], res[idsp]
+	
+	# perform
+	if (plot == 1):
+		return plotHist(block, isdt, ch, ns, save, name, show)
+	if (analyze == 1):
+		return analysis(block, isdt, ch)
+		

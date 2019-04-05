@@ -1,0 +1,117 @@
+# enhance chip image and normalize - generated on Dec 12-13
+# para: warp - warped chip image
+#	spot/sur_dt - list of values for spot and panel area in each block of the chip
+#	nbins - # of bins to calculate 3D histogram
+#	
+#
+# output: 
+#
+
+def normalize(warp, spotdt, surdt, nbins, rw, cl, rst, cst, cext, lr, sr):
+
+	# fill individual block of the chip with given value
+	# para: norm - blank image, fill blocks constitutively
+	#	i/j - row/column id of current block
+	#	r/g/b - vals used to fill block
+	#	REST - SAME
+	#
+	# output: norm - current blocked filled
+	#
+	def fill(norm, i, j, r, g, b, rst, cst, cext, lr):
+		x = rst + (2*j + 1)*lr
+		y = cst + (2*i + 1)*lr + i*cext
+		norm[y - lr: y + lr, x - lr: x + lr] = [r,g,b]
+		return norm
+
+	# enhance the panel
+	# para: surdt - data for areas excluding spot (panel)
+	#	norm - enhanced panel image
+	#	REST - SAME
+	#
+	# output: norm - image for panel, each block consists of pixels of the same value
+	#		 calculated as the most representative value of that block
+	#
+	def panelConstruct(surtdt, norm, nbins, rw, cl, rst, cst, cext, lr):
+		for i in range(0, rw):
+			for j in range(0, cl):
+				id = i * cl + j
+				r, g, b = repreVal(surdt, nbins, id)
+				norm = fill(norm, i, j, r, g, b, rst, cst, cext, lr)
+				#show(norm, 1)
+				#if cv2.waitKey(0) & 0xFF == ord('a'):
+				#	return
+		return norm
+
+	# black-out areas other than spots
+	# para: mask - blank image same size as warped, drawing panel
+	#	fold - edge length of warped / 420
+	#	same as for that for whole function
+	# output: mask - blank image where spot areas being white
+	#
+	def maskD(mask, fold, rsz, rw, cl, rst, cst, cext, lr, sr, val):
+		d = lr * fold
+		r = sr * fold
+		for i in range(0, rw):
+			for j in range(0, cl):
+				cv2.circle(mask, (rst + (2*j+1)*d, cst + (2*i+1)*d + i * cext), r, val, -1)
+		#show(mask, rsz)
+		#if cv2.waitKey(0) & 0xFF == ord('a'):
+		#	return
+		return mask
+		
+	# enhance chip through adding enhanced spots to enhanced panel
+	# para: warp - warped chip image
+	#	REST SAME
+	#
+	# output: 
+	#	
+	def enhanceGraph(warp, spotdt, surdt, nbins, rw, cl, rst, cst, cext, lr, sr):
+		# draw enhanced panel
+		enh = np.zeros_like(warp)      # empty panel
+		enh = panelConstruct(surdt, enh, nbins, rw, cl, rst, cst, cext, lr)
+		show(enh, 1)			# draw sub-panel using normalized mode value
+		if cv2.waitKey(0) & 0xFF == ord('a'):
+			return
+
+		# black-out spot areas on enh
+		mask = np.zeros_like(warp)
+		mask = maskD(mask, 1, 1, rw, cl, rst, cst, cext, lr, sr, [255, 255, 255])
+		enh_inv = cv2.bitwise_not(enh)
+		enh2_inv = cv2.add(enh_inv, mask)
+		enh2 = cv2.bitwise_not(enh2_inv)
+		show(enh2, 1)			# enh where spots areas are black
+		if cv2.waitKey(0) & 0xFF == ord('a'):
+			return
+
+		# add spots
+		for i in range(0, rw):
+			for j in range(0, cl):
+				id = i * cl + j
+				r, g, b = repreVal(spotdt, nbins, id)
+				cv2.circle(enh2, (rst + (2*j+1)*lr, cst + (2*i+1)*lr + i * cext), sr, [r,g,b], -1)
+		show(enh2, 1)
+		if cv2.waitKey(0) & 0xFF == ord('a'):
+			return
+
+		return enh2
+
+	#
+	# para:
+	#
+	# output:
+	#
+	def normalize(warp):
+		norm = np.empty(warp.shape)
+		
+		norm.fill(
+		norm = [
+
+
+	enhance = enhanceGraph(warp, spotdt, surdt, nbins, rw, cl, rst, cst, cext, lr, sr)
+
+
+
+
+
+
+	

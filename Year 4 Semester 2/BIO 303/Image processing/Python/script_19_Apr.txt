@@ -1,0 +1,258 @@
+import cv2, numpy as np, os, math, csv, pandas as pd
+from matplotlib import pyplot as plt
+from scipy import stats
+
+def show(img, fold):
+	rsz = cv2.resize(img, None, fx = fold, fy = fold)
+	cv2.imshow('img',rsz)
+
+def intshow(i):
+	plt.imshow(i)
+	plt.show()
+
+def getPatch(img, i, j, hoffset, voffset, hdist, vdist, hdd, vdd, r):
+def getPatch(img, i, j, para):
+	rw, cl, hoffset, voffset, hdist, vdist, hdd, vdd, r, dr = para
+	x = hoffset + j*hdist + (2*j+1)*r
+	y = voffset + i*vdist + (2*i+1)*r
+	return np.copy(img[y-vdd: y+vdd, x-hdd: x+hdd])
+
+para = [7, 6, 20, 27, 40, 30, 35, 30, 15, 25]
+os.chdir('wd/2018-19FYP/chip_v2/Benchmarking/20190305/version2')
+
+
+**** Apr 1 ****
+img = cv2.imread('20190305_lightconditions_c/light1/t2l1_20190305_07_bench_330lux_25min_AMP2.jpg')
+label = [1, 2, 1, 1, 1, 2, 2, 3, 2, 3, 3, 2, 1, 2, 2, 2, 1, 1, 1, 1, 2, 1, 2, 1, 1, 1, 2, 2, 3, 2, 3, 3, 2, 1, 2, 2, 2, 1, 1, 1, 1, 2]
+dt = spotGpPeak(img, para, label, 1)
+dthist = histogram(dt, 1, 0, 0, 0, '', 1, 1, 0) # peak
+
+def checkzero(dt):
+	x, y = dt.shape
+	res = []
+	for i in range(0, x):
+		for j in range(0, 3):
+			if (dt[i][j] == 0):
+				res.append(dt[i])
+				continue
+	return np.array(res)
+res = checkzero(dt)
+hist0 = histogram(res, 1, 0, 0, 0, '', 1, 1, 0) # plot
+# quite many pixels not absolute black but 0 in certain channel, eliminate
+dt = spotGpPeak(img, para, label, 1)
+dthist = histogram(dt, 1, 0, 0, 0, '', 1, 1, 0) # plot
+
+// label prepare
+# make up
+lbs = np.full((4, 42), np.array(label))
+ 
+# readin from csv
+lbs = pd.read_csv("20190305_lightconditions_dt/labels.csv", header = None)
+lbs = np.array(lbs)
+lbs = lbs.transpose(1, 0)
+
+// benchmarking_v4 test
+ip = '20190305_lightconditions_t2'
+op = '20190305_lightconditions_nhb'
+pdt, sdt = collectImgWise(ip, lbs, 2, 3) # original
+dt = collectImgWise(ip, lbs, 2, 3) # v2
+
+imgnms = ['20190305_lightconditions_t2/light1/t1l1_20190305_18_bench_330lux_3min_TET0.5.jpg',
+	  '20190305_lightconditions_t2/light2/t1l2_20190305_07_bench_flash_6min_AMP2.jpg',
+	  '20190305_lightconditions_t2/light2/t1l2_20190305_18_bench_flash_6min_TET0.5.jpg']
+# verify pdt
+img = cv2.imread(imgnms[2])
+hist = histogram(img, 0, 0, 0, 0, '', 1, 1, 0)
+
+# verify sdt
+img = cv2.imread(imgnms[0])
+dt = spotGpPeak(img, para, lbs[1], 1) # checked
+
+# wrout_based on v2 collectImgWise
+op = '20190305_lightconditions_dt/imgWise.csv'
+wroutImgWise(dt, op)
+
+// light-wise
+dt, histp, hists = collectLightWise(ip, lbs, 2, 3)
+show(hists[0][0][0], 1) # img (hist data) collected correctly
+
+# patch check
+histpdt = np.reshape(np.array(histp[0]), (420*420, 3))
+histpdt = np.reshape(np.array(histp[1]), (2*420*420, 3))
+hist, pc, sc = histogram(histpdt, 1, ch, 0, 0, '', 1, 0, 1) # peak
+
+# spot check
+histsdt = np.reshape(np.array(hists[0][0]), (420*420, 3))
+histsdt = np.reshape(np.array(hists[0][1]), (420*420, 3))
+histsdt = np.reshape(np.array(hists[1][1]), (420*420*2, 3))
+histsdt = histsdt[(histsdt != 0).all(axis = (1))]
+hist, pc, sc = histogram(histsdt, 1, 0, 0, 0, '', 1, 0, 1) # peak
+
+# wrout
+op = '20190305_lightconditions_dt/lightWise.csv'
+wroutImgWise(dt, op)
+
+
+**** Apr 2 ****
+// rm glare and border_process_v4
+# count from 0 and 255, left and right-ward .1*total many pixels, similar to wp2
+imgnms = ['20190305_lightconditions_c/light1/t2l1_20190305_07_bench_330lux_25min_AMP2.jpg',
+	  '20190305_lightconditions_c/light1/t2l1_20190305_27_bench_330lux_24min_TET0.5.jpg',
+	  '20190305_lightconditions_c/light2/t1l2_20190305_07_bench_flash_6min_AMP2.jpg',
+	  '20190305_lightconditions/light1/t2l1_20190305_07_bench_330lux_25min_AMP2.jpg',
+	  '20190305_lightconditions/light2/t2l2_20190305_24_bench_flash_27min_AMP2.jpg']
+
+warp = cv2.imread(imgnms[0])
+warp = cv2.imread(imgnms[1])
+warp = cv2.imread(imgnms[2])
+restr, thb, thg, histgray, histlab = remediate(warp, .02, .01, 1)
+
+a = np.reshape(gray, (x*y))
+a = a[a != 0]
+hist,bins = np.histogram(a, 256, [0,256])
+plt.plot(hist)
+plt.xlim([0,256])
+plt.show()
+
+# process integrate test
+orig, gray, inner, chip, warp, restr = process(imgnms[3], 100, .01, .01, .09) # v4 & persTrans_v3
+orig, gray, inner, chip, warp, restr = process(imgnms[3], 100, .018, .01) # v5 & persTrans_v2
+orig, gray, inner, chip, warp, restr = process(imgnms[4], 100, .018, .01) # v5 & persTrans_v2
+
+// ** whole process benchmarking_v4 **
+// crop
+home = os.path.expanduser(os.getcwd())
+os.chdir('wd/2018-19FYP/chip_v2/Benchmarking/20190305/version1/20190305_lightconditions_c')
+error = crop('20190305_lightconditions', '20190305_lightconditions_c') # both v1&v2 crop
+
+# orig distance
+allDist = distanceAll('20190305_lightconditions_c', 3)
+
+# change arrangement for other two measures
+os.chdir(home)
+os.chdir('wd/2018-19FYP/chip_v2/Benchmarking/20190305/version2/20190305_lightconditions_t')
+# either re-do again or simply copy from above
+error = crop('20190305_lightconditions_c', '20190305_lightconditions_n') # both v1&v2 crop
+
+// normalize and output
+// ** blockwise
+ip = '20190305_lightconditions_c'
+op = ['20190305_lightconditions_nhb', '20190305_lightconditions_wp1', '20190305_lightconditions_wp2']
+
+algr = ['histogramBased','whitePatch1', 'whitePatch2']
+nm = ['_patch_blockWise.csv','_spot_blockWise.csv']
+op = '20190305_lightconditions_dt/'
+
+# pdt[0] - Under light1
+# pdt[0][0] - 1st img
+# pdt[0][0][0] - 1st block
+# pdt[0][0][0][0] - R value
+
+pdt, sdt = normCollect(ip, op[0], para, 0, .1, 200, (42, 3))
+wrout(pdt, sdt, algr[0], nm, op)
+
+// ** imgwise
+lbs = pd.read_csv("20190305_lightconditions_dt/labels.csv", header = None)
+lbs = np.array(lbs)
+lbs = lbs.transpose(1, 0)
+
+# dt[0] - Under light1
+# dt[0][0] - 1st img
+# dt[0][0][0] - patch RGB
+# dt[0][0][1-3] - spot RGB from 3 labels
+
+ip = '20190305_lightconditions_nhb'
+dt = collectImgWise(ip, lbs, 2, 3) # v2
+op = '20190305_lightconditions_dt/histogramBased_imgWise.csv'
+wroutImgWise(dt, op)
+
+// ** lightwise
+dt, histp, hists = collectLightWise(ip, lbs, 3, 3)
+
+# dt[0] - Under light1
+# dt[0][0] - patch RGB of all imgs
+# dt[0][1-3] - spot RGB from 3 labels
+# histp[0] - Under light1
+# histp[0][0] - 1st img
+# hists[0][0] - label 1
+# hists[0][0][0] - 1st img
+
+op = '20190305_lightconditions_dt/histogramBased_lightWise.csv'
+wroutImgWise(dt, op)
+
+
+**** Apr 3 ****
+os.chdir('wd/2018-19FYP/chip_v2/Benchmarking/20190305/version2')
+// gather all data for lightwise
+img = cv2.imread('20190305_lightconditions_nhb/light1/t2l1_20190305_27_bench_330lux_24min_TET0.5.jpg')
+# refer to benchmark_v4
+p = simpleCover(img, para, 22)
+dissect('20190305_lightconditions_nhb', '20190305_lightconditions_nhb_p')
+
+
+**** Apr 4 ****
+l1 = np.reshape(lwp[0], (7*420*420, 3))
+d1 = l1[(l1 != 0).all(axis = (1))]
+hist = histogram(d1, 1, 0, 0, 0, '', 1, 1, 0)
+// continue
+# generate patch img for hb chip and output
+dissect('20190305_lightconditions_nhb', '20190305_lightconditions_nhb_p')          # generate and output
+simpleHist('20190305_lightconditions_nhb_p','20190305_lightconditions_nhb_p_hist') # img-wise histogram
+
+hblw, hblws = collectLightWise('20190305_lightconditions_nhb', lbs, 3, 3) # hb lw assemble of all images and spot gourp image
+hblwp = collectLightWise('20190305_lightconditions_nhb_p', lbs, 3, 3)     # hb lw assemble of patch images
+allhist = lwHist(hblw, '20190305_lightconditions_nhb_p_hist')  # orig
+allhist = lwHist(hblw, '20190305_lightconditions_nhb_hist')    # v2 lw whole img histogram
+allhist = lwHist(hblwp, '20190305_lightconditions_nhb_p_hist') # lw patch histogram
+
+// standard procedure
+# before norm
+clwp, clws = collectLightWise('20190305_lightconditions_c', lbs, 3, 3) # v2
+clwhist = lwHist(clwp, '20190305_lightconditions_c_p_hist')   # v2 cropped chip lightwise histogram
+export(clwp, '20190305_lightconditions_c_p_hist') # v1 benchmarking_v4
+export(clwphist, hblwp, '20190305_lightconditions_c_p_hist') # v2 bm_v4
+
+# hb normalized
+hblwp, hblws, hblwa = collectLightWise('20190305_lightconditions_nhb', lbs, 3, 3) # v3
+hblwphist = lwHist(hblwp, '20190305_lightconditions_nhb_p_hist') # patch lightwise histogram
+export(hblwp, '20190305_lightconditions_nhb_p_hist')
+export(hblwphist, hblwp, '20190305_lightconditions_nhb_p_hist')
+
+
+
+**** Apr 5 ****
+// peak area data extraction
+hblwpdt = np.reshape(hblwp[0], (7*420*420, 3))
+hblwpdt = hblwpdt[(hblwpdt != 0).all(axis = (1))]
+hist = histogram(hblwpdt, 1, 0, 0, 0, 0, '', 1, 0, 1, 0) # v4
+
+# bm_v5 test
+p, lo, hi, res = dataMakeupIndivd(hist, 10000)
+mkhist = histogram(res, 1, 1, 0, 0, 0, '', 1, 0, 1, 0) # v4
+a, b = dataMakeUp(hblwp, 10000)
+export(hblwp, '20190305_lightconditions_nhb_p_hist', 10000)
+
+// std procedure_bm_v5
+# before norm
+clwp, clws, clwa = collectLightWise('20190305_lightconditions_c', lbs, 3, 3)
+export(clwp, '20190305_lightconditions_c_p_hist', 10000)
+
+# hb
+hblwp, hblws, hblwa = collectLightWise('20190305_lightconditions_nhb', lbs, 3, 3)
+export(hblwp, '20190305_lightconditions_nhb_p_hist', 10000)
+
+# wp1
+wp1lwp, wp1lws, wp1lwa = collectLightWise('20190305_lightconditions_nwp1', lbs, 3, 3)
+export(wp1lwp, '20190305_lightconditions_nwp1_p_hist', 10000)
+
+# wp2
+wp2lwp, wp2lws, wp2lwa = collectLightWise('20190305_lightconditions_nwp2', lbs, 3, 3)
+export(wp2lwp, '20190305_lightconditions_nwp2_p_hist', 10000)
+
+
+// regenerate c
+refer to Apr 2
+
+
+
+

@@ -1,0 +1,378 @@
+import cv2, numpy as np, os
+from matplotlib import pyplot as plt
+os.chdir('wd/antib')
+
+
+
+**** Oct 12 ****
+img1 = cv2.imread('A45.jpg')
+i11 = cv2.resize(img1, None, fx = 0.3, fy = 0.3)
+i1 = cv2.cvtColor(i11, cv2.COLOR_BGR2GRAY)
+
+cv2.imshow('i1',i1)
+ret, thresh = cv2.threshold(i1, 20, 255, 0)
+cv2.imshow('th',thresh)
+tinv = cv2.bitwise_not(thresh)
+cv2.imshow('tinv', tinv)
+kernel = np.ones((5,5),np.uint8)
+di = cv2.dilate(tinv,kernel,iterations = 1)
+cv2.imshow('di',di)
+
+image, contours, hierarchy = cv2.findContours(di,cv2.RETR_TREE,cv2.CHAIN_APPROX_SIMPLE)
+cst = sorted(contours, key = lambda x: cv2.contourArea(x))
+# c1 = max(contours, key=cv2.contourArea)
+c1 = cst[len(cst) - 2]
+mask1 = np.zeros_like(i11)
+mask1 = cv2.drawContours(mask1, [c1], -1, (255, 255, 255), -1)
+cv2.imshow('mask1',mask1)
+mask1 = cv2.bitwise_not(mask1)
+
+epsilon = 0.05*cv2.arcLength(c1,True)
+approj = cv2.approxPolyDP(c1,epsilon,True)
+hold = np.zeros_like(i1)
+hold = cv2.polylines(hold,[approj],True,(255,255,255))
+cv2.imshow('hold',hold)
+merge = cv2.add(hold, i1)
+cv2.imshow('merge',merge)
+
+a = arrmk(approj)
+tl, tr, br, bl = order_points(a)
+
+def tplft(i1, x, y):
+	cints = i1[y, x]
+	nx = x
+	ny = y
+	while (abs(cints - i1[ny,nx]) < 20):
+		if (abs(cints - i1[ny - 1,nx]) < 20):
+			ny = ny - 1;
+		if (abs(cints - i1[ny,nx - 1]) < 20):
+			nx = nx - 1;
+		if (nx == x and ny == y):
+			break;
+	return (nx, ny)
+
+tplft(merge,155,245)
+
+cv2.circle(merge,(149,239),10,(255,255,255))
+
+
+**** Oct 14 ****
+hist = cv2.calcHist([i1],[0],None,[256],[0,256])
+def smooth(hist):
+	new = np.zeros_like(hist)
+	new[0] = hist[0]
+	new[len(hist) - 1] = hist[len(hist) - 1]
+	for i in range(1, len(hist) - 2):
+		new[i] = (hist[i - 1] + hist[i] + hist[i + 1]) / 3
+	return new
+
+nhist = smooth(hist)
+def drawHist(nhist):
+	plt.plot(nhist)
+	plt.xlim([0,256])
+	plt.show()
+
+def thval(s, nhist):
+	for i in range(s + 1, len(nhist) - 2):
+		if (nhist[i] > nhist[i - 1] and nhist[i] > nhist[i + 1]):
+			return i
+	return -1
+
+
+**** Oct 15 ****
+img1 = cv2.imread('A45.jpg')
+i11 = cv2.resize(img1, None, fx = 0.3, fy = 0.3)
+i1 = cv2.cvtColor(i11, cv2.COLOR_BGR2GRAY)
+
+# abandon
+def imgDisplay(name):
+	cv2.imshow('img', name)
+	cv2.waitKey(0) & 0xFF == ord('c')
+	cv2.destroyAllWindows()
+
+def drawMask(sample, c1):
+	mask = np.zeros_like(sample)
+	mask = cv2.drawContours(mask, [c1], -1, (255, 255, 255), -1)
+	imgDisplay(mask)
+
+def largeContour(i1, i11, t):
+	ret, thresh = cv2.threshold(i1, t, 255, 0)
+	cv2.imshow('th',thresh)
+	tinv = cv2.bitwise_not(thresh)
+	imgDisplay(tinv)
+
+	kernel = np.ones((5,5),np.uint8)
+	di = cv2.dilate(tinv,kernel,iterations = 1)
+	imgDisplay(di)
+
+	image, contours, hierarchy = cv2.findContours(di,cv2.RETR_TREE,cv2.CHAIN_APPROX_SIMPLE)
+	cst = sorted(contours, key = lambda x: cv2.contourArea(x))
+	
+	# get large square contour
+	c1 = cst[len(cst) - 2]
+	drawMask(i11, c1)
+
+	epsilon = 0.05*cv2.arcLength(c1,True)
+	approj = cv2.approxPolyDP(c1,epsilon,True)
+	hold = np.zeros_like(i1)
+	hold = cv2.polylines(hold,[approj],True,(255,255,255))
+	imgDisplay(hold)
+
+	merge = cv2.add(hold, i1)
+	imgDisplay(merge)
+
+	return approj
+
+def smSq(i1, i11, t):
+	ret, thresh = cv2.threshold(i1, t, 255, 0)
+	imgDisplay(thresh)
+	tinv = cv2.bitwise_not(thresh)
+	imgDisplay(tinv)
+	image, contours, hierarchy = cv2.findContours(tinv,cv2.RETR_TREE,cv2.CHAIN_APPROX_SIMPLE)
+	c1 = max(contours, key = cv2.contourArea)
+	drawMask(i11, c1)
+
+#i1 is gray img, i11 is orig one
+def drawC(t, name):
+	img1 = cv2.imread(name)
+	i11 = cv2.resize(img1, None, fx = 0.3, fy = 0.3)
+	i1 = cv2.cvtColor(i11, cv2.COLOR_BGR2GRAY)
+
+	# draw histogram
+	hist = cv2.calcHist([i1],[0],None,[256],[0,256])
+	drawHist(hist)
+
+	#if (lgSq == 1):
+	#	approj = largeContour(tinv, i11)
+	#else:
+	smSq(i1, i11, t)
+
+
+**** Oct 16 ****
+import cv2, numpy as np, os
+from matplotlib import pyplot as plt
+os.chdir('wd/antib/181026')
+
+img1 = cv2.imread('A45.jpg')
+i11 = cv2.resize(img1, None, fx = 0.3, fy = 0.3)
+i1 = cv2.cvtColor(i11, cv2.COLOR_BGR2GRAY)
+
+equ = cv2.equalizeHist(i1)
+res = np.hstack((i1, equ))
+cv2.imshow('res',res)
+
+ret, thresh = cv2.threshold(equ, 20, 255, 0)
+cv2.imshow('th',thresh)
+
+
+**** Oct 18 ****
+def intensity_extract(warped, fold):
+	# res = np.empty(shape = (36, 120, 120, 3), dtype = int)
+	res = []
+	d = 35 * fold
+	r = 15 * fold
+	for i in range(0, 7):
+		for j in range(0, 7):
+			# np.append(res, warped[(2*j+1)*d-r:(2*j+1)*d+r, (2*i+1)*d-r:(2*i+1)*d+r])
+			res.append(warped[(2*j+1)*d-r:(2*j+1)*d+r, (2*i+1)*d-r:(2*i+1)*d+r])
+	return res
+
+
+img, a45apj, a45m = solve('a45.jpg', 0.2, 20)
+a45wp, a45fd = transform(img, a45apj)
+res = intensity_extract(a45wp, 4)
+cv2.imwrite('a45p.jpg', a45wp)
+
+
+**** Oct 20 ****
+img, a45napj, a45nm = solve('a45n.jpg', 0.2, 60)
+a45nwp, a45nfd = transform(img, a45napj)
+cv2.imwrite('a45np.jpg', a45nwp)
+
+img, nc45apj, nc45m = solve('nc45.jpg', 0.2, 60)
+nc45wp, nc45fd = transform(img, nc45apj)
+cv2.imwrite('nc45p.jpg', nc45wp)
+
+img, nc45napj, nc45nm = solve('nc45n.jpg', 0.2, 50)
+nc45nwp, nc45nfd = transform(img, nc45napj)
+cv2.imwrite('nv45np.jpg', nc45nwp)
+
+img, nc100napj, nc100nm = solve('nc100n.jpg', 0.2, 50)
+nc100nwp, nc100nfd = transform(img, nc100napj)
+cv2.imwrite('nc100np.jpg', nc100nwp)
+
+img, tet100napj, tet100nm = solve('tet100n.jpg', 0.2, 50)
+tet100nwp, tet100nfd = transform(img, tet100napj)
+cv2.imwrite('tet100np.jpg', tet100nwp)
+res = []
+res.append(a45wp)
+res.append(a45nwp)
+res.append(nc45wp)
+res.append(nc45nwp)
+res.append(nc100nwp)
+res.append(tet100nwp)
+max = imgsz(res)
+rescp = imgbd(res, max)
+
+	
+	def imgsz(res):
+		max = 0
+		for i in range(0, len(res)):
+			if (max < res[i].shape[0]):
+				max = res[i].shape[0]
+		return max
+
+imgnm, rescp = final('orig', 'res', 0.2, 60)
+os.chdir('..')
+
+
+**** Oct 21 ****
+// from writeout, change it to return approj
+a45 = solve('a45.jpg', 0.2, 70)
+
+
+**** Oct 27 ****
+i1 = cv2.imread('892088217.jpg')
+i1 = cv2.imread('1143600984.jpg')
+i1 = cv2.imread('196304783.jpg')
+i1 = cv2.imread('1786086552.jpg')
+i1 = cv2.imread('967428662.jpg')
+
+i1g = cv2.cvtColor(i1, cv2.COLOR_BGR2GRAY)
+
+def conDraw(imgg, i, cst):
+	c1 = cst[len(cst) - i]
+	mask1 = np.zeros_like(imgg)
+	mask1 = cv2.drawContours(mask1, [c1], -1, (255, 255, 255), -1)
+	show(mask1, 0.3)
+	return c1
+
+def show(img, fold):
+	rsz = cv2.resize(img, None, fx = fold, fy = fold)
+	cv2.imshow('img',rsz)
+
+def corner(c1, imgg):
+	epsilon = 0.05*cv2.arcLength(c1,True)
+	approj = cv2.approxPolyDP(c1,epsilon,True)
+	hold = np.zeros_like(imgg)
+	hold = cv2.polylines(hold,[approj],True,(255,255,255))
+	image, contours2, hierarchy = cv2.findContours(hold,cv2.RETR_TREE,cv2.CHAIN_APPROX_NONE)
+
+	c2 = max(contours2, key=cv2.contourArea)
+	mask1 = np.zeros_like(imgg)
+	mask1 = cv2.drawContours(mask1, [c2], -1, (255, 255, 255), -1)
+	show(mask1, 0.3)
+	return approj
+
+def solve(th, st):
+	ret, thresh = cv2.threshold(i1g, th, 255, 0)
+	show(thresh, 0.3)
+	if (cv2.waitKey(0) & 0xFF == ord('q')):
+		return
+	cv2.destroyAllWindows()
+
+	image, contours, hierarchy = cv2.findContours(thresh,cv2.RETR_TREE,cv2.CHAIN_APPROX_SIMPLE)
+	cst = sorted(contours, key = lambda x: cv2.contourArea(x))
+	c1 = conDraw(i1g, st, cst)
+	if (cv2.waitKey(0) & 0xFF == ord('q')):
+		return
+	cv2.destroyAllWindows()
+	
+	corner(c1, i1g)
+
+def smooth(hist):
+	new = np.zeros_like(hist)
+	new[0] = hist[0]
+	new[len(hist) - 1] = hist[len(hist) - 1]
+	for i in range(1, len(hist) - 2):
+		new[i] = (hist[i - 1] + hist[i] + hist[i + 1]) / 3
+	return new
+
+def drawHist(nhist):
+	plt.plot(nhist)
+	plt.xlim([0,256])
+	plt.show()
+
+hist = cv2.calcHist([i1],[0],None,[256],[0,256])
+
+def inten(st, hist):
+	nhist = hist
+	for i in range(0, st):
+		nhist = smooth(nhist)
+	drawHist(nhist)
+
+inten(80, hist)
+
+
+**** Oct 30 ****
+def cornerf(n, d, m):
+	i1 = cv2.imread('1786086552.jpg')
+	i1g = cv2.cvtColor(i1, cv2.COLOR_BGR2GRAY)
+
+	corners = cv2.goodFeaturesToTrack(i1g, n, d, m)
+	corners = np.int0(corners)
+
+	for i in corners:
+	    x,y = i.ravel()
+	    cv2.circle(i1g,(x,y),3,255,-1)
+
+	plt.imshow(i1g),plt.show()
+
+
+**** Oct 31 ****
+def test(i1g, th):
+	ret, thresh = cv2.threshold(i1g, th, 255, 0)
+	show(thresh, 0.3)
+
+def intenCal(img, rl, rh, cl, ch):
+	bl = 0
+	wt = 0
+	r, c = img.shape
+	rl = max(rl, 0)
+	rh = min(rh, r)
+	cl = max(cl, 0)
+	ch = min(ch, c) 
+	for i in range(rl, rh + 1):
+		for j in range(cl, ch + 1):
+			if (img[i][j] == 255):
+				 wt += 1
+			else:
+				 bl += 1
+	return wt, bl
+
+def cornerF(img, sz, cut):
+	r, c = img.shape
+	res = []
+	for i in range(0, r):
+		for j in range(0, c):
+			if (img[r][c] != 0):
+				continue
+			if (img[r - 1][c] == 255 and img[r + 1][c] == 255):
+				continue
+			if (img[r][c - 1] == 255 and img[r][c + 1] == 255):
+				continue
+			res.append([j, i])
+			wtp = 0
+			blp = 0
+			wt, bl = intenCal(img, i - sz, i, j - sz, j) # up left
+			if (wt + bl < cut * wt) wtp++
+			else if (wt + bl < cut * bl) blp++
+			else continue
+
+			wt, bl = intenCal(img, i + sz, i, j - sz, j) # bottom left
+			if (wt + bl < cut * wt) wtp++
+			else if (wt + bl < cut * bl) blp++
+			else continue
+
+			wt, bl = intenCal(img, i + sz, i, j + sz, j) # bottom right
+			if (cut * (wt + bl) < wt) wtp++
+			else if (wt + bl < bl) blp++
+			else continue
+
+ 			wt, bl = intenCal(img, i - sz, i, j + sz, j) # up right
+			if (wt + bl < cut * wt) wtp++
+			else if (wt + bl < cut * bl) blp++
+			else continue
+			
+			if (wtp == 3 || wtp == 1) res.append([j, i])
+	return res

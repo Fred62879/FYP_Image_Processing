@@ -1,0 +1,526 @@
+// initialize
+import cv2, numpy as np, os
+os.chdir('wd/antib')
+
+
+// mask for spots
+mask = np.zeros((420, 420, 3), dtype=np.uint8)
+mask = spotMask(mask)
+cv2.imshow('mask',mask)
+mask = cv2.bitwise_not(mask)
+tet100n = cv2.add(warpedtet100n, mask)
+cv2.imshow('tet100n',tet100n)
+
+def spotMask(mask):
+	r = 35
+	for i in range(0, 7):
+		for j in range(0, 7):
+			cv2.circle(mask, ((2*j+1)*r, (2*i+1)*r), 15, (255, 255, 255), -1)
+	cv2.imshow('mask',mask)
+	return mask
+
+
+def readin(name, thre, i):
+	orig = cv2.imread(name)
+	rsz = cv2.resize(orig, None, fx = i, fy = i)
+	gray = cv2.cvtColor(rsz, cv2.COLOR_BGR2GRAY)
+	ret, thresh = cv2.threshold(gray, thre, 255, 0)	
+	tinv = cv2.bitwise_not(thresh)
+	return tinv
+
+
+
+// final
+csttet100n, rsztet100n = readin('TET100N.jpg', 70, 0.3)
+warpedtet100n = perspTrans(2, 3, csttet100n, rsztet100n)
+length = warpedtet100n.shape[0]
+rsz = cv2.resize(warpedtet100n, None, fx = 450/length,fy = 450/length)
+
+
+cstnc45, rsznc45 = readin('NC45.jpg',0)
+
+IMG_880 = cv2.imread('IMG_8803.jpg',0)
+IMG_8803 = cv2.resize(IMG_880, None, fx = 0.4, fy = 0.4)
+
+// function
+
+def readin(name, thre, i):
+	orig = cv2.imread(name)
+	rsz = cv2.resize(orig, None, fx = i, fy = i)
+	gray = cv2.cvtColor(rsz, cv2.COLOR_BGR2GRAY)
+	ret, thresh = cv2.threshold(gray, thre, 255, 0)	
+
+	# check thresholded img
+	cv2.imshow('th',thresh)
+	if cv2.waitKey(0) & 0xFF == ord('a'):
+		return
+	cv2.destroyAllWindows()
+	tinv = cv2.bitwise_not(thresh)
+
+	cv2.imshow('tinv',tinv)
+	image, contours, hierarchy = cv2.findContours(tinv,cv2.RETR_TREE,cv2.CHAIN_APPROX_SIMPLE)
+	cst = sorted(contours, key=lambda x: cv2.contourArea(x))
+
+	# check if large square captured
+	mask = np.zeros_like(tinv)
+	cv2.drawContours(mask, cst, len(cst) - 2, 255, -1)
+	cv2.imshow('mask',mask)
+	if cv2.waitKey(0) & 0xFF == ord('a'):
+		return
+	cv2.destroyAllWindows()
+	# check if small square captured
+	cv2.drawContours(mask, cst, len(cst) - 3, 255, -1)
+	cv2.imshow('mask',mask)
+	if cv2.waitKey(0) & 0xFF == ord('a'):
+		return
+	cv2.destroyAllWindows()
+	hold = np.zeros_like(tinv)
+	return (cst, rsz)
+
+// 
+TET10 = cv2.imread('TET100N.jpg')
+TET100 = cv2.resize(TET10, None, fx = 0.1, fy = 0.1)
+cv2.imshow('tet100',TET100)
+TET100N = cv2.cvtColor(TET100, cv2.COLOR_BGR2GRAY)
+cv2.imshow('tet100n',TET100N)
+ret, thresh = cv2.threshold(TET100N, 70, 255, 0)
+cv2.imshow('th',thresh)
+tinv = cv2.bitwise_not(thresh)
+cv2.imshow('tinv',tinv)
+image, contours, hierarchy = cv2.findContours(tinv,cv2.RETR_TREE,cv2.CHAIN_APPROX_SIMPLE)
+cst = sorted(contours, key=lambda x: cv2.contourArea(x))
+hold = np.zeros_like(tinv)
+lsl = apprf(2, tinv)
+lss = apprf(3, tinv)
+orpl = order_points(lsl)
+orps = order_points(lss)
+cpl = close(orpl, orps)
+rect = transfom(cpl, orpl)
+len = longest(orpl)
+dst = np.array([[0, 0], [len, 0], [len, len], [0, len]], dtype = 'float32')
+M = cv2.getPerspectiveTransform(rect, dst)
+warped = cv2.warpPerspective(TET100, M, (len, len))
+cv2.imshow('wa',warped)
+
+#testing
+mask = np.zeros((800,800))
+cv2.imshow('mask',mask)
+
+def spotMask(cor, cir, n):
+	for i in range(0, n):
+		for j in range(0, n):
+			cv2.circle(mask, ((2*j+1)*cor, (2*i+1)*cor), cir, (255, 255, 255), -1)
+
+spotMask(100, 50, 4)
+cv2.imshow('mask',mask)
+
+
+// histogram
+def hist(i1):
+	hist = cv2.calcHist([i1],[0],None,[256],[0,256])
+	plt.plot(hist)
+	plt.xlim([0,256])
+	plt.show()
+
+def draw(i1, a):
+	ret, thresh = cv2.threshold(i1, a, 255, 0)
+	cv2.imshow('th',thresh)
+	return thresh
+
+
+TET100 = cv2.imread('TET100N.jpg',0)
+TET100N = cv2.resize(TET100, None, fx = 0.1, fy = 0.1)
+th1 = draw(TET100N, 120)
+hist(TET100N)
+
+NC4 = cv2.imread('NC45.jpg',0)
+NC45 = cv2.resize(NC4, None, fx = 0.1, fy = 0.1)
+hist(NC45)
+th1 = draw(NC45, 20)
+kernel = np.ones((5,5),np.uint8)
+tinv = cv2.bitwise_not(th1)
+di = cv2.dilate(tinv,kernel,iterations = 1)
+cv2.imshow('di',di)
+
+IMG_880 = cv2.imread('IMG_8803.jpg',0)
+IMG_8803 = cv2.resize(IMG_880, None, fx = 0.4, fy = 0.4)
+hist(IMG_8803)
+th1 = draw(IMG_8803, 20)
+
+
+// pt 2nd
+img1 = cv2.imread('IMG_8821.jpg',0)
+i1 = cv2.resize(img1, None, fx = 0.5, fy = 0.5)
+cv2.imshow('i1',i1)
+ret, thresh = cv2.threshold(i1, 120, 255, 0)   #1st thresholding
+cv2.imshow('th',thresh)
+tinv = cv2.bitwise_not(thresh)
+cv2.imshow('tinv',tinv)
+image, contours, hierarchy = cv2.findContours(tinv,cv2.RETR_TREE,cv2.CHAIN_APPROX_SIMPLE)
+cst = sorted(contours, key = lambda x: cv2.contourArea(x))
+drawCon(cst, len(cst) - 1)
+hold = np.zeros_like(tinv)
+
+
+
+
+//perspective transform
+img1 = cv2.imread('3.jpg',0)
+i1 = cv2.resize(img1, None, fx = 0.3, fy = 0.3)
+cv2.imshow('i1',i1)
+ret, thresh = cv2.threshold(i1, 120, 255, 0)
+cv2.imshow('th',thresh)
+tinv = cv2.bitwise_not(thresh)
+cv2.imshow('tinv',tinv)
+
+kernel = np.ones((5,5),np.uint8)
+image, contours, hierarchy = cv2.findContours(tinv,cv2.RETR_TREE,cv2.CHAIN_APPROX_SIMPLE)
+cst = sorted(contours, key=lambda x: cv2.contourArea(x))
+hold = np.zeros_like(tinv)
+lsl = apprf(2)
+orpl = order_points(lsl)
+lss = apprf(3)
+orps = order_points(lss)
+
+cpl = close(orpl, orps)
+rect = transfom(cpl, orpl)
+len = longest(orpl)
+dst = np.array([[0, 0], [len, 0], [len, len], [0, len]], dtype = 'float32')
+M = cv2.getPerspectiveTransform(rect, dst)
+warped = cv2.warpPerspective(i1, M, (len, len))
+cv2.imshow('wa',warped)
+
+
+// others
+
+
+def close(approj, c):
+	sm = float('inf')
+	sx = []
+	for i in range(0, 3):
+		if (i != c and distance(approj[i][0], approj[c][0]) < sm):
+			sm = distance(approj[i][0], approj[c][0])
+			sx = approj[i][0]
+	return sx
+
+	
+def remote(approj, c):
+	lg = float(0)
+	lx = []
+	for i in range(0, 3):
+		if (i != c and distance(approj[i][0], approj[c][0]) > lg):
+			lg = distance(approj[i][0], approj[c][0])
+			lx = approj[i][0]
+	return lx
+
+		
+def order(approj):
+	res = np.array(shape = (4, 2), dtype = 'int32')
+	res[0] = approj[0]
+	res[2] = remote(approj, 0)
+
+
+c1 = max(contours, key=cv2.contourArea)
+mask1 = np.zeros_like(i1)
+cv2.drawContours(mask1, [c1], -1, 255, -1)
+cv2.imshow('mask1',mask1)
+
+di = cv2.dilate(tinv,kernel,iterations = 1)
+image, contours, hierarchy = cv2.findContours(di,cv2.RETR_TREE,cv2.CHAIN_APPROX_SIMPLE)
+c2 = max(contours, key=cv2.contourArea)
+mask2 = np.zeros_like(i1)
+cv2.drawContours(mask2, [c2], -1, 255, -1)
+cv2.imshow('mask2',mask2)
+
+res = cv2.bitwise_and(i1, i1, mask = mask2)
+cv2.imshow('res',res)
+dinv = cv2.bitwise_not(res)
+cv2.imshow('dinv',dinv)
+cv2.imwrite('dinv.jpg')
+ret, thresh2 = cv2.threshold(dinv, 110, 255, 0)
+cv2.imshow('th',thresh2)
+cv2.imwrite('thresh.jpg',thresh2)
+tinv2 = cv2.bitwise_not(thresh2)
+cv2.imshow('tinv2',tinv2)
+cv2.imwrite('tinv2.jpg', tinv2)
+image, contours, hierarchy = cv2.findContours(tinv,cv2.RETR_TREE,cv2.CHAIN_APPROX_SIMPLE)
+c3 = max(contours, key=cv2.contourArea)
+mask3 = np.zeros_like(i1)
+cv2.drawContours(mask3, [c], -1, 255, -1)
+cv2.imshow('mask3',mask3)
+
+mask13 = cv2.add(mask1, mask3)
+cv2.imshow('mask13',mask13)
+mask = np.zeros_like(i1)
+image, contours, hierarchy = cv2.findContours(mask13,cv2.RETR_TREE,cv2.CHAIN_APPROX_NONE)
+cv2.imshow('mask',mask)
+
+
+
+
+
+// spot extract
+res = cv2.bitwise_and(i1, i1, mask = mask)
+cv2.imshow('res',res)
+dinv = cv2.bitwise_not(res)
+cv2.imshow('dinv',dinv)
+cv2.imwrite('dinv.jpg')
+ret, thresh = cv2.threshold(dinv, 110, 255, 0)
+cv2.imshow('th',thresh)
+cv2.imwrite('thresh.jpg',thresh)
+tinv = cv2.bitwise_not(thresh)
+cv2.imshow('tinv',tinv)
+cv2.imwrite('tinv.jpg', tinv)
+image, contours, hierarchy = cv2.findContours(tinv,cv2.RETR_TREE,cv2.CHAIN_APPROX_SIMPLE)
+c = max(contours, key=cv2.contourArea)
+mask = np.zeros_like(i1)
+cv2.drawContours(mask, [c], -1, 255, -1)
+cv2.imshow('mask',mask)
+cv2.imwrite('mask.jpg', mask)
+dest = cv2.bitwise_and(mask,i1)
+cv2.imshow('dest',dest)
+cv2.imwrite('dest.jpg', dest)
+ret, thresh = cv2.threshold(dest, 155, 255, 0)
+cv2.imshow('th',thresh)
+cv2.imwrite('th2.jpg', thresh)
+er = cv2.erode(tinv,kernel,iterations = 1)
+cv2.imshow('er',er)
+cv2.imwrite('th2.jpg', thresh)
+cv2.imwrite('er.jpg', er)
+
+
+
+// 
+img1 = cv2.imread('A45.jpg',0)
+i1 = cv2.resize(img1, None, fx = 0.1, fy = 0.1)
+cv2.imshow('i1',i1)
+
+ret, thresh = cv2.threshold(i1, 20, 255, 0)
+cv2.imshow('th',thresh)
+kernel = np.ones((5,5),np.uint8)
+thresh = cv2.morphologyEx(thresh,cv2.MORPH_OPEN,kernel)
+
+image, contours, hierarchy = cv2.findContours(thresh,cv2.RETR_TREE,cv2.CHAIN_APPROX_SIMPLE)
+cv2.imshow('image',image)
+mask = np.zeros_like(i1)
+cv2.drawContours(mask, contours, 0, 255, -1)
+cv2.imshow('mask',mask)
+
+mask = cv2.drawContours(mask, contours, -1, (255,255,255), cv2.FILLED)
+def solve(img,a,b,c,d,e,f):
+	ret,thresh = cv2.threshold(img, b, 255, 0)
+	kernel = np.ones((a,a),np.uint8)
+	thresh = cv2.morphologyEx(thresh,cv2.MORPH_OPEN,kernel)
+	image, contours, hierarchy = cv2.findContours(thresh,cv2.RETR_TREE,cv2.CHAIN_APPROX_SIMPLE)
+	mask = np.zeros_like(img)
+	mask = cv2.drawContours(mask, contours, -1, (c, d, e), cv2.FILLED)
+	cv2.imshow('mask',mask)
+
+
+
+erosion = cv2.erode(thresh,kernel,iterations = 1)
+cv2.imshow('er',erosion)
+inv = cv2.bitwise_not(erosion)
+cv2.imshow('inv',inv)
+image, contours, hierarchy = cv2.findContours(inv,cv2.RETR_TREE,cv2.CHAIN_APPROX_SIMPLE)
+mask = np.zeros_like(i1)
+mask = cv2.drawContours(mask, contours, -1, (255,255,255), cv2.FILLED)
+cv2.imshow('mask',mask)
+
+
+mask = np.zeros_like(i1)
+cv2.imshow('mask',mask)
+thinv = cv2.bitwise_not(thresh)
+cv2.imshow('thinv',thinv)
+image, contours, hierarchy = cv2.findContours(thinv,cv2.RETR_TREE,cv2.CHAIN_APPROX_SIMPLE)
+cv2.drawContours(mask, contours, -1, 255, -1)
+
+
+thresh = cv2.adaptiveThreshold(img1,255,cv2.ADAPTIVE_THRESH_GAUSSIAN_C,cv2.THRESH_BINARY,11,2)
+
+
+// orientation
+def rotate(i1, c):
+	mask = np.zeros_like(i1)
+	cv2.drawContours(mask, [c], -1, 255, -1)
+	cv2.imshow('mask',mask)
+
+	el = tuple(c[c[:, :, 0].argmin()][0])
+	er = tuple(c[c[:, :, 0].argmax()][0])
+	et = tuple(c[c[:, :, 1].argmin()][0])
+	eb = tuple(c[c[:, :, 1].argmax()][0])
+
+	#cut horizontally
+	mid = (et[1] + eb[1]) // 2
+	cv2.line(mask, (el[0], mid), (er[0], mid), (0,0,0),2)
+	image, contours, hierarchy = cv2.findContours(mask,cv2.RETR_TREE,cv2.CHAIN_APPROX_SIMPLE)
+	c = contours[0]
+	ext = tuple(c[c[:, :, 1].argmax()][0]) # bottom
+	i = ext == mid - 2 ? 0 : 1 # c[i] is top part
+	sup = cv2.contourArea(contours[i])
+	sdow = cv2.contourArea(contours[1 - i])
+	if (sup > sdow) i1 = 
+
+
+def ori(img):
+	i1 = cv2.resize(img, None, fx = 0.1, fy = 0.1)
+	ret, thresh = cv2.threshold(i1, 20, 255, 0)
+	tinv = cv2.bitwise_not(thresh)
+	kernel = np.ones((5,5),np.uint8)
+	di = cv2.dilate(tinv,kernel,iterations = 1)
+	image, contours, hierarchy = cv2.findContours(di,cv2.RETR_TREE,cv2.CHAIN_APPROX_SIMPLE)
+	c = max(contours, key=cv2.contourArea)
+
+		
+
+	// cut vertically
+	m = (el[0] + er[0]) // 2
+	cv2.line(mask, (mid, et[1]), (mid, eb[1]), (0,0,0),2)
+	image, contours, hierarchy = cv2.findContours(mask,cv2.RETR_TREE,cv2.CHAIN_APPROX_SIMPLE)
+	
+// function
+def rotRe(rotated, cnt):
+	rect = cv2.minAreaRect(cnt)
+	box = cv2.boxPoints(rect)
+	box = np.int0(box)
+	rotated = cv2.drawContours(rotated,[box],0,(255,255,255),-1)
+	cv2.imshow('r',rotated)	
+	
+	
+// find straight bound rect
+import imutils
+x, y = mask.shape
+m = mask[0:x, 0:y]
+cv2.imshow('m',m)
+rotated = imutils.rotate_bound(m, 30)
+cv2.imshow('r',rotated)
+cv2.imwrite('rotated.jpg',rotated)
+image, contours, hierarchy = cv2.findContours(rotated,cv2.RETR_TREE,cv2.CHAIN_APPROX_SIMPLE)
+cnt = max(contours, key=cv2.contourArea)
+rect = cv2.minAreaRect(cnt)
+box = cv2.boxPoints(rect)
+box = np.int0(box)
+rotated = cv2.drawContours(rotated,[box],0,(255,255,255),-1)
+cv2.imshow('r',rotated)
+cv2.imwrite('enclosed.jpg',rotated)
+image, contours, hierarchy = cv2.findContours(rotated,cv2.RETR_TREE,cv2.CHAIN_APPROX_SIMPLE)
+c = contours[0]
+el = tuple(c[c[:, :, 0].argmin()][0])
+et = tuple(c[c[:, :, 1].argmin()][0])
+eb = tuple(c[c[:, :, 1].argmax()][0])
+a = (eb[1] - el[1]) / (eb[0] - el[0]) *slope
+b = np.arctan(a) 
+import math
+angle = b * 180 / math.pi
+
+up = math.pow(2,(et[0] - el[0])) + math.pow(2,(et[1] - el[1]))
+bot = math.pow(2,(eb[0] - el[0])) + math.pow(2,(eb[1] - el[1]))
+
+* if up > bot angle += 90
+
+x,y,w,h = cv2.boundingRect(cnt)
+rotated = cv2.rectangle(rotated,(x,y),(x+w,y+h),(255,255,255),2)
+cv2.imshow('r',rotated)
+
+
+// comment
+>>> c[:, :, 0].argmin()
+41
+>>> c[c[:, :, 0].argmin()]
+array([[ 41, 248]], dtype=int32)
+>>> c[c[:, :, 0].argmin()][0]
+array([ 41, 248], dtype=int32)
+
+
+// calculate area
+el = tuple(c[c[:, :, 0].argmin()][0]) // c[:, :, 0] returns an array of x-coor of enrties of c
+er = tuple(c[c[:, :, 0].argmax()][0])
+et = tuple(c[c[:, :, 1].argmin()][0])
+eb = tuple(c[c[:, :, 1].argmax()][0])
+mid = (er[0] + el[0]) // 2
+cv2.imshow('mask',mask)
+cv2.line(mask, (mid, et[1]), (mid, eb[1]), (0,0,0),2)
+cv2.imshow('mask',mask)
+cv2.imwrite('maskl.jpg',mask)
+image, contours, hierarchy = cv2.findContours(mask,cv2.RETR_TREE,cv2.CHAIN_APPROX_SIMPLE)
+
+rotated = imutils.rotate_bound(m, angle)
+
+// function
+def solve(img):
+	i1 = cv2.resize(img, None, fx = 0.1, fy = 0.1)
+	cv2.imshow('i1',i1)
+	cv2.imwrite('i1.jpg',i1)
+	ret, thresh = cv2.threshold(i1, 20, 255, 0)
+	cv2.imshow('thresh',thresh)
+	cv2.imwrite('thresh.jpg',thresh)
+	tinv = cv2.bitwise_not(thresh)
+	cv2.imshow('tinv',tinv)
+	cv2.imwrite('tinv.jpg',tinv)
+	kernel = np.ones((5,5),np.uint8)
+	di = cv2.dilate(tinv,kernel,iterations = 1)
+	cv2.imshow('di',di)
+	cv2.imwrite('di.jpg',di)
+	image, contours, hierarchy = cv2.findContours(di,cv2.RETR_TREE,cv2.CHAIN_APPROX_SIMPLE)
+	c = max(contours, key=cv2.contourArea)
+	mask = np.zeros_like(i1)
+	cv2.drawContours(mask, [c], -1, 255, -1)
+	cv2.imshow('mask',mask)
+	cv2.imwrite('mask.jpg',mask)
+
+
+// extract contour
+img1 = cv2.imread('A45.jpg',0)
+i1 = cv2.resize(img1, None, fx = 0.1, fy = 0.1)
+cv2.imshow('i1',i1)
+ret, thresh = cv2.threshold(i1, 20, 255, 0)
+cv2.imshow('thresh',thresh)
+tinv = cv2.bitwise_not(thresh)
+cv2.imshow('tinv',tinv)
+kernel = np.ones((5,5),np.uint8)
+di = cv2.dilate(tinv,kernel,iterations = 1)
+cv2.imshow('di',di)
+image, contours, hierarchy = cv2.findContours(di,cv2.RETR_TREE,cv2.CHAIN_APPROX_SIMPLE)
+cst = sorted(contours, key=lambda x: cv2.contourArea(x))
+len(cst) // find largest
+mask = np.zeros_like(i1)
+cv2.drawContours(mask, cst, 27, 255, -1)
+cv2.imshow('mask',mask)
+res = cv2.bitwise_and(i1, i1, mask = mask)
+cv2.imshow('res',res)
+
+
+// crop image
+ci1 = i1[70:270,40:235]
+cv2.imshow('ci1',ci1)
+ret, thresh = cv2.threshold(ci1, 20, 255, 0)
+cv2.imshow('th',thresh)
+kernel = np.ones((5,5),np.uint8)
+er = cv2.erode(thresh,kernel,iterations = 1)
+cv2.imshow('er',er)
+erinv = cv2.bitwise_not(er)
+cv2.imshow('erinv',erinv)
+image, contours, hierarchy = cv2.findContours(erinv,cv2.RETR_TREE,cv2.CHAIN_APPROX_SIMPLE)
+mask = np.zeros_like(ci1)
+cv2.drawContours(mask, contours, 0, 255, -1)
+cv2.imshow('mask',mask)
+cires = cv2.bitwise_and(ci1, ci1, mask = mask)
+cv2.imshow('cires',cires)
+
+
+
+
+// apple crop example
+img2 = cv2.imread('apple.jpg')
+cv2.imshow('apple',img2)
+a = cv2.cvtColor(img2, cv2.COLOR_RGB2GRAY)
+b = cv2.Canny(a, 100,200)
+image, contours, hierarchy = cv2.findContours(b, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
+mask = np.zeros_like(b)
+cv2.drawContours(mask, contours, -1, (255,255,255), cv2.FILLED)
+cv2.imshow('mask',mask)
+apres = cv2.bitwise_and(img2,img2,mask = mask)
+cv2.imshow('apres',apres)
+
+
+
