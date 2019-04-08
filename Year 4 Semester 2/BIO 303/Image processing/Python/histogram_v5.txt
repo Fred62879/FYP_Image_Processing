@@ -1,4 +1,5 @@
-# cleaned up the code, Apr 5 2019
+# Cleaned up the code - Apr 5 2019
+# Updated. Remove outlier after calculating the histogram - Apr 8 2019
 # para: dt - img/full_dt/channel_dt for histogramming
 #	isdt - whether dt is processed data
 #	ischl - whether dt is the data for only one channel
@@ -11,8 +12,9 @@
 #	calOnly - calculate histogram for dt only
 #	plot - plot histogram or not (entail either save or show or both)
 #	analyze - do peak detection or not
+#	dist - smallest distance between the two peaks (7 use here)
 
-def histogram(dt, isdt, ischl, ch, ns, save, name, display, calOnly, plotOnly, analyze):
+def histogram(dt, isdt, ischl, ch, ns, save, name, display, calOnly, plotOnly, analyze, dist):
 	
 	# one-time smooth for given hist
 	def smooth(hist):
@@ -58,9 +60,9 @@ def histogram(dt, isdt, ischl, ch, ns, save, name, display, calOnly, plotOnly, a
 	# detect and return all peaks in hist
 	# count from i right/left_ward, if, excluding identical inten,
 	# n consecutive smaller inten can be found, then left/right success
-	def peak(hist, n):
+	def peak(hist, n, above):
 		res = []
-		for i in range(n, len(hist) - n):   # check validity of each i to be peak
+		for i in range(n, min(len(hist) - n, above)):   # check validity of each i to be peak
 			if (hist[i] < hist[i - 1] or hist[i] < hist[i + 1]):
 				continue
 			lo = i
@@ -95,49 +97,62 @@ def histogram(dt, isdt, ischl, ch, ns, save, name, display, calOnly, plotOnly, a
 		return res
 
 	# detect spot and white area peak
-	# para: 
+	# para: block - block/block data under investigation
+	#	ch - channels to derive peak
 	#
-	def analysis(hist):
-		postuwp = max(hist) # postulated white peak value
-		idpostuwp = 0           # id of postulated white peak
+	def analysis(hist, dist):
+		# major peak detection
+		mjpk = max(hist)  # major (white) peak value
+		idmj = 0          # intensity value of major peak
 		for i in range(0, 255):
-			if (hist[i] == postuwp):
-				idpostuwp = i
+			if (hist[i] == mjpk):
+				idmj = i
+				break
 
-		# detect peaks until <= 5 are detected
-		res = []  # array of peaks
-		for i in range(10, 100):
-			res = peak(hist, i)
-			if (len(res) <= 5):
-				break
-		
-		# locate two peaks
-		idsp = 0  # id of spot peak in res
-		idwp = 0  # id of white peak in res
-		min = 255
-		for i in range(1, len(res)):
-			if (idpostuwp < res[i]):
-				break
-			if (min > idpostuwp - res[i]):
-				min = idpostuwp - res[i]
-				idwp = i
-				idsp = i - 1
-		
-		return hist, res[idwp], res[idsp]
+		# minor peak detection
+		mrpk = 0
+		idmr = 0
+		res = peak(hist, dist, idmj)
+		for i in range(0, len(res)):
+			if (mrpk < hist[res[i]]):
+				mrpk = hist[res[i]]
+				idmr = res[i]
+		return hist, idmj, idmr
 	
-	# perform
+	# Data preparation
 	if (isdt == 0):
 		x, y, z = dt.shape
 		dt = np.reshape(dt, (x*y, z))
 		dt = dt[(dt != 0).all(axis = (1))]
+		dt = dt[(dt != 255).all(axis = (1))] # Apr 7, remove 255 generated in wp
 	if (ischl == 0):
 		dt = dt[:, ch]
-	hist, bins = np.histogram(dt, 256, [0, 256]) # 'ch' channel
-	hist[0:20] = 0                               # newly added
+	hist, bins = np.histogram(dt, 256, [0,256])
+
+	# Remove outlier
+	# thct = .01 * dt.shape[0]
+	# lb = 0  # lower bound
+	# hb = 0  # higher bound
+	# ct = 0  # bin count
+	# for i in range(0, 255, 1):
+	#	if (ct >= thct):
+	#		lb = i
+	#		break
+	#	ct = ct + hist[i]
+	# ct = 0
+	# for i in range(255, 0, -1):
+	#	if (ct >= thct):
+	#		hb = i
+	#		break
+	#	ct = ct + hist[i]
+	# hist[0:lb] = 0
+	# hist[hb:255] = 0
+	
+	# Perform
 	if (calOnly == 1):
-		return hist
+		return hist, dt
 	if (plotOnly == 1):
 		return plotHist(hist, ns, save, name, display)
 	if (analyze == 1):
-		return analysis(hist)
+		return analysis(hist, dist)
 		

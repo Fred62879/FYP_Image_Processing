@@ -1,4 +1,4 @@
-# extract chip area
+# extract chip area, do not display images
 # @para chipct: contour for intact chip (inner area)
 #       orig: original image
 #	gray: gray scale image
@@ -7,12 +7,7 @@
 # @output: perspectively transformed chip area
 #
 
-def persTransU(chipct, orig, gray, fold, chip):
-
-	# display resized image
-	def show(img, fold):
-		rsz = cv2.resize(img, None, fx = fold, fy = fold)
-		cv2.imshow('img',rsz)
+def persTransU(chipct, orig, gray, chip):
 
 	# calculate the slope of the line defined by two given points
 	def slope(p1, p2):
@@ -41,7 +36,6 @@ def persTransU(chipct, orig, gray, fold, chip):
 		for i in range(0, 4):
 			res[i] = chipcrj[(i + hdcridx) % 4]
 		return res
-
 
 	# sort points clockwise
 	# para: pts - an array of randomly ordered points which are corners of a convex quadrilateral
@@ -80,33 +74,20 @@ def persTransU(chipct, orig, gray, fold, chip):
 		# bottom-right, and bottom-left order
 		return np.array([tl, tr, br, bl], dtype="float32")		
 
-	# unfold approj
-	# para: approj - [[[a, b], [c, d], [e, f], [g, h]]]
-	#
-	# output: a - [[a, b], [c, d], [e, f], [g, h]]
-	#
-	def arrmk(approj):
-		a = np.zeros(shape = (len(approj), 2), dtype = 'int32')
-		for i in range(0, len(approj)):
-			   a[i] = approj[i][0]
-		#a = a.reshape((-1,1,2))
-		return a
-
 	# find corner from chip contour
 	# para: chipct - contour of the chip area
-	#	fold - display fold
 	#	thre - threshold to do the contour approximaiton
 	#	hold - a blank/black image same size as gray, used as drawing panel
 	#
 	# output: a - a list of points being corners of chipct
 	#	  hold - a black image sketched with contour defined by a
 	#
-	def apprf(chipct, fold, thre, hold):
+	def apprf(chipct, thre, hold):
 		epsilon = thre * cv2.arcLength(chipct, True)
 		cr = cv2.approxPolyDP(chipct, epsilon, True)  # corners detected for chipct
-		a = arrmk(cr)				      # change data format of 
+		x, y, z = cr.shape
+		a = np.reshape(cr, (x*y, z))		      # change data format of 
 		cv2.polylines(hold, [a], True, (255,255,255)) # draw quadrilateral defined by cr/a
-		show(hold, fold)    #draw contour from found corners
 		return a, hold
 
 
@@ -126,51 +107,37 @@ def persTransU(chipct, orig, gray, fold, chip):
 	# find corner of major chip and minor chip
 	# para: gray - gray scaled image
 	#	chipct - contour of the chip area
-	#	fold - display fold
 	#	chip - a black image where only areas enclosed by chipct is white
 	#
 	# output: chipcrj - a list of four points being four of the five corners of the chip
 	#	  chipcrr - a list of three points including the absent one from chipcrj with its two adjacencies
 	#
-	def cornerF(gray, chipct, fold, chip):
-
+	def cornerF(gray, chipct, chip):
 		# find corner of major portion of the chip
 		hold = np.zeros_like(gray)
-		chipcrj, hold = apprf(chipct, fold, 0.05, hold)
+		chipcrj, hold = apprf(chipct, .05, hold)
 		
 		# display the major chip area - white rectangle area defined by chipcrj
 		image, contours, hierarchy = cv2.findContours(hold, cv2.RETR_TREE, cv2.CHAIN_APPROX_NONE)
 		chipmj = np.zeros_like(gray)
 		chipmj = cv2.drawContours(chipmj, [contours[0]], -1, (255, 255, 255), -1)
-		show(chipmj, fold)
-		if cv2.waitKey(0) & 0xFF == ord('a'):
-			return
-		cv2.imwrite('chipmj.jpg', chipmj)
 
 		# display the rest of the chip
 		ohf = otherHf(chipmj, chip)
-		show(ohf, fold)
-		if cv2.waitKey(0) & 0xFF == ord('a'):
-			return
-		cv2.imwrite('ohf.jpg', ohf)
 
 		# find the minor chip area (a triangle) - largest area among rest of the chip
 		image, contours, hierarchy = cv2.findContours(ohf, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
 		c = max(contours, key = cv2.contourArea)
 		chipmr = np.zeros_like(gray)
 		chipmr = cv2.drawContours(chipmr, [c], -1, (255, 255, 255), -1)
-		show(chipmr, fold)
-		if cv2.waitKey(0) & 0xFF == ord('a'):
-			return
-		cv2.imwrite('chipmr.jpg', chipmr) 
 
 		# find corner of minor chip area
 		hold = np.zeros_like(gray)
-		chipcrr, hold = apprf(c, 0.4, 0.01, hold)
+		chipcrr, hold = apprf(c, 0.01, hold)
 	
 		return chipcrj, chipcrr
 
-	chipcrj, chipcrr = cornerF(gray, chipct, fold, chip) # corner array of the major(4 cors)/minor(3 cors) portion
+	chipcrj, chipcrr = cornerF(gray, chipct, chip) # corner array of the major(4 cors)/minor(3 cors) portion
 	orcrj = order_points(chipcrj)                        # corner of the major portion clockwise ordered
 	hdcr, hdcridx = hideCorner(chipcrj, chipcrr)         # coor of the hidden corner and its index in chipcrj
 	chipcrj[hdcridx] = hdcr				     # replace the daunted corner with the real/hidden one
@@ -181,7 +148,4 @@ def persTransU(chipct, orig, gray, fold, chip):
 	dst = np.array(([[leng, 0], [leng, leng], [0, leng], [0, 0]]), dtype = 'float32')
 	M = cv2.getPerspectiveTransform(rect, dst)	     # transformation matrix
 	warped = cv2.warpPerspective(orig, M, (leng, leng))  # transformed chip
-	show(warped, 1)
-	if cv2.waitKey(0) & 0xFF == ord('a'):
-		return
 	return warped

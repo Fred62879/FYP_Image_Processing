@@ -1,5 +1,6 @@
 # Abandon white reference, replace with histogram-based normalization. 
-# Normalize img and record data for exportation altogether. Mar 31 2019
+# Normalize img and store data for export together. Mar 31 2019
+# Bugs corrected in wp2. Apr 7 2019
 # para: img - processed image of the chip
 #	para -- chip design parameter
 #	choa - algorithm choice
@@ -12,35 +13,77 @@
 #
 
 def lightAdjust(img, para, choa, threshold, standard):
+
+	# self-explanatory
+	def maskInvAdd(mask, img):
+		mask_inv = cv2.bitwise_not(mask)
+		img_inv = cv2.bitwise_not(img)
+		merge_inv = cv2.add(mask_inv, img_inv)
+		merge = cv2.bitwise_not(merge_inv)
+		return merge
+
+	# Remove residue borders and glares of the given image
+	def remediate(warp):
+		mask = np.full_like(warp, 255)
+		labwarp = cv2.cvtColor(warp, cv2.COLOR_BGR2LAB)
+		x, y, c = labwarp.shape
+
+		# decide local brightness, brighteset (LH) and darkest (LL)
+		meanLH = 0
+		meanLL = 256
+		bd = [ [[0,x/2],[0,y/2]], [[0,x/2],[y/2,y]], [[x/2,x],[0,y/2]], [[x/2,x],[y/2,y]] ]
+		for i in range(0, 4):
+			curbd = bd[i]
+			local = labwarp[int(curbd[0][0]):int(curbd[0][1]), int(curbd[1][0]):int(curbd[1][1])]
+			meanLH = max(meanLH, np.mean(local[:,:,0]))
+			meanLL = min(meanLL, np.mean(local[:,:,0]))
+
+		# derive proper glare and bordere threshold
+		thb = 0
+		thg = 255
+		if (meanLL >= 80):
+			thb = (meanLL - 80) * .6
+		if (meanLH < 205):
+			thg = thg - (205 - meanLH)
+
+		# thresholding
+		bordermask = (labwarp[:,:,0] >= thb).astype(np.uint8) # pixel gray value <= th, black-out
+		mask = mask * bordermask[:,:,None]
+		glaremask = (labwarp[:,:,0] <= thg).astype(np.uint8) # pixel L value > th, black-out
+		mask = mask * glaremask[:,:,None]
+		restr = maskInvAdd(mask, warp)
+		return restr
 	
 	# Perform histogram based normalization, return peaks together
 	def histBased(block, pdt, sdt, standard):
 		cbk = np.copy(block)
-		x, y, z = cbk.shape
-		cbk = np.reshape(cbk, (x*y, z))
 		cpdt = []
 		csdt = []
 		for ch in range(0, 3): # for R/G/B channel
-			chist, intenw, intens = histogram(block, 0, ch, 0, 0, '', 1, 0, 1) # v3
+			chist, intenw, intens = histogram(cbk, 0, 0, ch, 0, 0, '', 0, 0, 0, 1, 7) # v3
 			shift = standard - intenw
-			cbk[:,ch] = cbk[:,ch] + shift # normalized
+			cc = cbk[:,:,ch]
+			cc[cc != 0] += np.uint8(shift)  # only shift non zero
+			cbk[:,:,ch] = cc
+
+			# output data
 			cpdt.append(standard)
 			csdt.append(intens + shift)
 		pdt.append(np.array(cpdt))
 		sdt.append(np.array(csdt))
-		return np.reshape(cbk, (x,y,z)), pdt, sdt
+		return cbk, pdt, sdt
 
 	# wp1 (input modified)
-	def whitePatch1(block, pdt, sdt):
-		cbk = block.transpose(2, 0, 1)
-		brightest = float(2**8)
+	def whitePatch1(block, pdt, sdt, standard):
+		cbk = np.copy(block).transpose(2, 0, 1)
+		# brightest = float(2**8)
 		cpdt = []
 		csdt = []
-		for ch in range(0, 3): # for R/G/B channel
-			cbk[ch] = np.minimum(cbk[ch] * (brightest/float(cbk[ch].max())),255)
+		for ch in range(0, 3):
+			cbk[ch] = np.minimum(cbk[ch] * (float(standard)/float(cbk[ch].max())),255)
 
 			# extract data
-			chist, intenw, intens = histogram(block, 0, ch, 0, 0, '', 1, 0, 1) # v3
+			chist, intenw, intens = histogram(cbk, 0, 0, ch, 0, 0, '', 0, 0, 0, 1, 7) # v5
 			cpdt.append(intenw)
 			csdt.append(intens)
 		pdt.append(np.array(cpdt))
@@ -48,29 +91,41 @@ def lightAdjust(img, para, choa, threshold, standard):
 		return cbk.transpose(1, 2, 0), pdt, sdt	
 
 	# wp2
-	def whitePatch2(block, threshold, pdt, sdt):
-		cbk = block.transpose(2, 0, 1)
-		brightest = float(2**8)
+	def whitePatch2(block, threshold, pdt, sdt, standard):
+		cbk = np.copy(block).transpose(2, 0, 1)
 		cpdt = []
 		csdt = []
 		x, y, z = cbk.shape
 		th = threshold * y * z
 		for ch in range(0, 3):
 			h = np.bincount(cbk[ch].ravel(), minlength = 256)
-			sum = 0
-			max = 256
-			while (sum < int(th) & max > 1):
-				max = max - 1
-				sum = sum + h[max]
-			cbk[ch] = np.minimum(cbk[ch] * (brightest/float(max)),255)
+			h[0] = 0
+			h[255] = 0
+			cct = 0
+			mx = 256
+			while (cct < int(th)):
+				mx = mx - 1
+				cct = cct + h[mx]
+			cbk[ch] = np.minimum(cbk[ch] * (float(standard)/float(mx)),255)
 
 			# extract data
-			chist, intenw, intens = histogram(block, 0, ch, 0, 0, '', 1, 0, 1) # v3
+			chist, intenw, intens = histogram(cbk, 0, 0, ch, 0, 0, '', 0, 0, 0, 1, 7) # v5
 			cpdt.append(intenw)
 			csdt.append(intens)
 		pdt.append(np.array(cpdt))
 		sdt.append(np.array(csdt))
 		return cbk.transpose(1, 2, 0), pdt, sdt
+
+	def origValue(block, pdt, sdt):
+		cpdt = []
+		csdt = []
+		for ch in range(0, 3):
+			chist, intenw, intens = histogram(block, 0, 0, ch, 0, 0, '', 0, 0, 0, 1, 7) # v5
+			cpdt.append(intenw)
+			csdt.append(intens)
+		pdt.append(np.array(cpdt))
+		sdt.append(np.array(csdt))
+		return pdt, sdt
 
 	# Final operation
 	# rw * cl chip
@@ -82,6 +137,8 @@ def lightAdjust(img, para, choa, threshold, standard):
 	# dr - radius for spot drawing
 	rw, cl, hoffset, voffset, hdist, vdist, hdd, vdd, r, dr = para
 	norm = np.copy(img)	        # do not change input img
+	norm = remediate(img)
+	# intshow(norm)
 	pdt = []        		# peak data for spot &
 	sdt = []			# patch collected directly following normlizaiton
 
@@ -91,16 +148,19 @@ def lightAdjust(img, para, choa, threshold, standard):
 			x = hoffset + j*hdist + (2*j+1)*r # col no.
 			y = voffset + i*vdist + (2*i+1)*r # row no.
 			block = norm[y-vdd: y+vdd, x-hdd: x+hdd]
+			nblock = 0
 
-			if (choa == 0): # hist_based
+			if (choa == 0):
 				nblock, pdt, sdt = histBased(block, pdt, sdt, standard)
-
-			elif (choa == 1): # wp1
-				nblock, pdt, sdt = whitePatch1(block, pdt, sdt)
-
-			elif (choa == 2): # wp2
-				nblock, pdt, sdt = whitePatch2(block, threshold, pdt, sdt) # suggested thre .1
-
+			elif (choa == 1):
+				nblock, pdt, sdt = whitePatch1(block, pdt, sdt, standard)
+			elif (choa == 2):
+				nblock, pdt, sdt = whitePatch2(block, threshold, pdt, sdt, standard) # suggested thre .1
+			elif (choa == 3):
+				pdt, sdt = origValue(block, pdt, sdt)
 			norm[y-vdd: y+vdd, x-hdd: x+hdd] = nblock
 
-	return norm, np.array(pdt), np.array(sdt)
+	if (choa == 3):
+		return np.array(pdt), np.array(sdt)
+	else:
+		return norm, np.array(pdt), np.array(sdt)

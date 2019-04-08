@@ -1,0 +1,138 @@
+# Output 'ch' channel histogram of block 5 for given image_Apr 8 2019
+# para: img - processed image of the chip
+#	para -- chip design parameter
+#	choa - algorithm choice
+#	threshold - bincount threshold for white patch
+#	standard - standard white value for histBased normalization
+#
+# output: cpNorm - copy of "process" that is lighting normalized
+#	  spotNorm - cpNorm where areas other than spots are black
+#	  spotDt - an array of spot data
+#
+
+def lightAdjust(img, para, choa, threshold, standard, ch, out):
+
+	# self-explanatory
+	def maskInvAdd(mask, img):
+		mask_inv = cv2.bitwise_not(mask)
+		img_inv = cv2.bitwise_not(img)
+		merge_inv = cv2.add(mask_inv, img_inv)
+		merge = cv2.bitwise_not(merge_inv)
+		return merge
+
+	# Remove residue borders and glares of the given image
+	def remediate(warp):
+		mask = np.full_like(warp, 255)
+		labwarp = cv2.cvtColor(warp, cv2.COLOR_BGR2LAB)
+		x, y, c = labwarp.shape
+
+		# decide local brightness, brighteset (LH) and darkest (LL)
+		meanLH = 0
+		meanLL = 256
+		bd = [ [[0,x/2],[0,y/2]], [[0,x/2],[y/2,y]], [[x/2,x],[0,y/2]], [[x/2,x],[y/2,y]] ]
+		for i in range(0, 4):
+			curbd = bd[i]
+			local = labwarp[int(curbd[0][0]):int(curbd[0][1]), int(curbd[1][0]):int(curbd[1][1])]
+			meanLH = max(meanLH, np.mean(local[:,:,0]))
+			meanLL = min(meanLL, np.mean(local[:,:,0]))
+
+		# derive proper glare and bordere threshold
+		thb = 0
+		thg = 255
+		if (meanLL >= 80):
+			thb = (meanLL - 80) * .6
+		if (meanLH < 205):
+			thg = thg - (205 - meanLH)
+
+		# thresholding
+		bordermask = (labwarp[:,:,0] >= thb).astype(np.uint8) # pixel gray value <= th, black-out
+		mask = mask * bordermask[:,:,None]
+		glaremask = (labwarp[:,:,0] <= thg).astype(np.uint8) # pixel L value > th, black-out
+		mask = mask * glaremask[:,:,None]
+		restr = maskInvAdd(mask, warp)
+		return restr
+	
+	# Perform histogram based normalization, return peaks together
+	def histBased(block, standard, ch, out, id):
+		cbk = np.copy(block)
+		chist, intenw, intens = histogram(cbk, 0, 0, ch, 0, 0, '', 0, 0, 0, 1, 7) # v5
+		
+		# output
+		info = str(id) + '_' + str(intens) + '_' + str(chist[intens]) + '_' + str(intenw) + '_' + str(chist[intenw])
+		# cn = os.path.join(out, '_' + info + '.png')
+		cn = out + '_' + info + '.png'
+		chist = histogram(cbk, 0, 0, ch, 0, 1, cn, 0, 0, 1, 0, 0) # v5
+
+	# wp1 (input modified)
+	def whitePatch1(block, standard, ch, out, id):
+		cbk = np.copy(block).transpose(2, 0, 1)
+		cbk[ch] = np.minimum(cbk[ch] * (float(standard)/float(cbk[ch].max())),255)
+
+		# peak detection
+		cbk = cbk.transpose(1, 2, 0)
+		chist, intenw, intens = histogram(cbk, 0, 0, ch, 0, 0, '', 0, 0, 0, 1, 7) # v5
+		
+		# output histogram labeled with peak
+		info = str(id) + '_' + str(intens) + '_' + str(chist[intens]) + '_' + str(intenw) + '_' + str(chist[intenw])
+		# cn = os.path.join(out, '_' + info + '.png')
+		cn = out + '_' + info + '.png'
+		chist = histogram(cbk, 0, 0, ch, 0, 1, cn, 0, 0, 1, 0, 0) # v5
+
+	# wp2
+	def whitePatch2(block, threshold, standard, ch, out, id):
+		cbk = np.copy(block).transpose(2, 0, 1)
+		x, y, z = cbk.shape
+		th = threshold * y * z
+		h = np.bincount(cbk[ch].ravel(), minlength = 256)
+		h[0] = 0
+		h[255] = 0
+		cct = 0
+		mx = 256
+		while (cct < int(th)):
+			mx = mx - 1
+			cct = cct + h[mx]
+		cbk[ch] = np.minimum(cbk[ch] * (float(standard)/float(mx)),255)
+
+		# peak detection
+		cbk = cbk.transpose(1, 2, 0)
+		chist, intenw, intens = histogram(cbk, 0, 0, ch, 0, 0, '', 0, 0, 0, 1, 7) # v5
+
+		# output histogram labeled with peak
+		info = str(id) + '_' + str(intens) + '_' + str(chist[intens]) + '_' + str(intenw) + '_' + str(chist[intenw])
+		# cn = os.path.join(out, '_' + info + '.png')
+		cn = out + '_' + info + '.png'
+		chist = histogram(cbk, 0, 0, ch, 0, 1, cn, 0, 0, 1, 0, 0) # v5
+
+	# Final operation
+	# rw * cl chip
+	# h/v_offset - horizontal/vertical distance between left/top_most point of 
+	# 	       the top-left spot and the left/top inner chip edge
+	# h/v_dist - horizontal/vertical distance between two spots
+	# h/v_dd - half of horizontal/vertical edge length of rectangle extracted
+	# r - radius of spot
+	# dr - radius for spot drawing
+	rw, cl, hoffset, voffset, hdist, vdist, hdd, vdd, r, dr = para
+	norm = np.copy(img)	        # do not change input img
+	norm = remediate(norm)		# remove glares and borders
+
+	# output block 5 histogram
+	i = 0
+	j = 5
+	x = hoffset + j*hdist + (2*j+1)*r # col no.
+	y = voffset + i*vdist + (2*i+1)*r # row no.
+	id = j + i * cl
+	block = norm[y-vdd: y+vdd, x-hdd: x+hdd]
+
+	if (choa == 0):
+		histBased(block, standard, ch, out, id)
+	elif (choa == 1):
+		whitePatch1(block, standard, ch, out, id)
+	elif (choa == 2):
+		whitePatch2(block, threshold, standard, ch, out, id)
+
+	# for i in range(0, rw):
+	#	for j in range(0, cl):
+	#		id = j + i * cl
+	#		block = norm[y-vdd: y+vdd, x-hdd: x+hdd]
+
+

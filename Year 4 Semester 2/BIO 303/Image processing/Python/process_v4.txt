@@ -1,9 +1,9 @@
 # Remediate implemented. Gray & LAB thre, display img - Apr 2 2019
+# Abandon counting in remediate - Apr 6 2019
+# Update remediate. Only based on LAB. Thre derived from meanL - Apr 8 2019
 # para: name - name of the image to be processed
 #	thre - threshold value
-#	thb/g_f - factor for border/glare removal (.01 suggested)
 #	fold - image display fold
-#	display - whether display img or not
 #
 # output: orig - original image called "name"
 #	  gray - gray scaled orig
@@ -12,7 +12,13 @@
 #	  warp - perspective trasformed chip
 #	  restr - version of warp with top-right corner being completely black
 #
-def process(name, thre, thbf, thgf, fold):
+def process(name, thre, fold):
+
+	def show(img, fold):
+		rsz = cv2.resize(img, None, fx = fold, fy = fold)
+		cv2.imshow('img', rsz)
+		if cv2.waitKey(0) & 0xFF == ord('a'):
+			return
 
 	# self-explanatory
 	def maskInvAdd(mask, img):
@@ -31,8 +37,6 @@ def process(name, thre, thbf, thgf, fold):
 	def displayContour(outer, img, fold):
 		img = cv2.drawContours(img, [outer], -1, (255, 255, 255), -1)
 		show(img, fold)
-		if cv2.waitKey(0) & 0xFF == ord('a'):
-			return
 		return img
 			
 	# black out areas out of contour
@@ -44,13 +48,8 @@ def process(name, thre, thbf, thgf, fold):
 	def black(ct, targetCt1, fold, gray):
 		ct = cv2.drawContours(ct, [targetCt1], -1, (255, 255, 255), -1)
 		show(ct, fold)
-		if cv2.waitKey(0) & 0xFF == ord('a'):
-			return
-
 		merge = maskInvAdd(ct, gray)
 		show(merge, fold)
-		if cv2.waitKey(0) & 0xFF == ord('a'):
-			return
 		return merge
 
 	# find corners of the given contour - chipct
@@ -75,8 +74,6 @@ def process(name, thre, thbf, thgf, fold):
 	def findCountour(gray, thre, fold):
 		ret, thresh = cv2.threshold(gray, thre, 255, 0)
 		show(thresh, fold)
-		if cv2.waitKey(0) & 0xFF == ord('a'):
-			return
 		tinv = cv2.bitwise_not(thresh)
 		image, contours, hierarchy = cv2.findContours(tinv,cv2.RETR_TREE,cv2.CHAIN_APPROX_SIMPLE)
 		sortedContour = sorted(contours, key = lambda x: cv2.contourArea(x))
@@ -129,55 +126,62 @@ def process(name, thre, thbf, thgf, fold):
 		return orig, gray, inner
 
 	# last step process, black-out glares and involved black borders	
-	def remediate(warp, thbf, thgf):
+	def remediate(warp):
 		mask = np.full_like(warp, 255)
-		graywarp = cv2.cvtColor(warp, cv2.COLOR_BGR2GRAY)
 		labwarp = cv2.cvtColor(warp, cv2.COLOR_BGR2LAB)
 		x, y, c = labwarp.shape
-		histlab = histogram(labwarp, 0, 0, 0, 0, 0, '', 0, 1, 0, 0)
 
-		grayhistdt = np.reshape(graywarp, (x*y))
-		histgray,bins = np.histogram(grayhistdt[grayhistdt != 0], 256, [0,256])
+		# decide local brightness, brighteset (LH) and darkest (LL)
+		meanLH = 0
+		meanLL = 256
+		bd = [ [[0,x/2],[0,y/2]], [[0,x/2],[y/2,y]], [[x/2,x],[0,y/2]], [[x/2,x],[y/2,y]] ]
+		for i in range(0, 4):
+			curbd = bd[i]
+			local = labwarp[int(curbd[0][0]):int(curbd[0][1]), int(curbd[1][0]):int(curbd[1][1])]
+			meanLH = max(meanLH, np.mean(local[:,:,0]))
+			meanLL = min(meanLL, np.mean(local[:,:,0]))
 
-		# derive threshold value for black border_gray scale
+		# derive proper glare and bordere threshold
 		thb = 0
-		bct = 0
-		for i in range(0, 255, 1):
-			if (bct >= thbf * x * y):
-				thb = i
-				break
-			bct = bct + histgray[i]
+		thg = 255
+		if (meanLL >= 80):
+			thb = (meanLL - 80) * .6
+		if (meanLH < 205):
+			thg = thg - (205 - meanLH)
+
+		# histogram count method, temporarily abandon
+		# histlab = histogram(labwarp, 0, 0, 0, 0, 0, '', 0, 1, 0, 0)
+		# grayhistdt = np.reshape(graywarp, (x*y))
+		# histgray,bins = np.histogram(grayhistdt[grayhistdt != 0], 256, [0,256])
+		# derive threshold value for black border_gray scale
+		# thb = 0
+		# bct = 0
+		# for i in range(0, 255, 1):
+		#	if (bct >= thbf * x * y): # or i >= 35):
+		#		thb = i
+		#		break
+		#	bct = bct + histgray[i]
 
 		# derive threshold value for glare_LAB space
-		thg = 0
-		gct = 0
-		for i in range(255, 0, -1):
-			if (gct >= thgf * x * y):
-				thg = i
-				break
-			gct = gct + histlab[i]
+		# thg = 0
+		# gct = 0
+		# for i in range(255, 0, -1):
+		#	if (gct >= thgf * x * y or i <= 240):
+		#		thg = i
+		#		break
+		#	gct = gct + histlab[i]
 
 		# thresholding
-		bordermask = (graywarp[:,:] >= thb).astype(np.uint8) # pixel gray value <= th, black-out
+		bordermask = (labwarp[:,:,0] >= thb).astype(np.uint8) # pixel gray value <= th, black-out
 		mask = mask * bordermask[:,:,None]
-		show(mask, 1)
-		if cv2.waitKey(0) & 0xFF == ord('a'):
-			return
-
 		glaremask = (labwarp[:,:,0] <= thg).astype(np.uint8) # pixel L value > th, black-out
 		mask = mask * glaremask[:,:,None]
-		show(mask, 1)
-		if cv2.waitKey(0) & 0xFF == ord('a'):
-			return
-
 		restr = maskInvAdd(mask, warp)
-		show(restr, 1)
-		if cv2.waitKey(0) & 0xFF == ord('a'):
-			return
-		return restr, thb, thg, histgray, histlab
+		intshow(restr)
+		return restr
 		
 	orig, gray, inner = readin(name, thre, fold)
 	chip = displayContour(inner, np.zeros_like(gray), fold)
-	warp = persTransU(inner, orig, gray, .1, chip) # v1
-	restr, thb, thg, histgray, histlab = remediate(warp, thbf, thgf)
+	warp = persTransU(inner, orig, gray, .1, chip) # v2
+	restr = remediate(warp)
 	return orig, gray, inner, chip, warp, restr

@@ -1,0 +1,145 @@
+-Apr 8 2019, folder name change, remove 20190305.. suffix
+
+**** Crop ****
+// same order for both version1 & 2 folder
+error = crop('20190305_lightconditions', '20190305_lightconditions_c')
+error = crop('1-orig', '2-crop')
+
+**** Distance ****
+# version 1 folder
+// before norm
+allDist = distanceAll('20190305_lightconditions_c', 3)
+# allDist[0/1] - t1/2 chip 1
+# allDist[0][0~2] - dist between l1&l2, l1&l3, and l2&l3
+array([[ -1,  -1, 297],
+       [ -1, 332,  -1],
+       [315, 341, 311],
+       [319, 341, 305],
+       [305, 336, 313],
+       [326, 338, 298],
+       [ -1,  -1, 306],
+       [300, 345, 310],
+       [ -1,  -1, 305],
+       [ -1,  -1, 299],
+       [ -1,  -1, 296],
+       [318, 338, 302]], dtype=int64)
+
+a = allDist.transpose(1, 0)
+array([[ -1,  -1, 315, 319, 305, 326,  -1, 300,  -1,  -1,  -1, 318],
+       [ -1, 332, 341, 341, 336, 338,  -1, 345,  -1,  -1,  -1, 338],
+       [297,  -1, 311, 305, 313, 298, 306, 310, 305, 299, 296, 302]],
+      dtype=int64)
+
+m1 = np.mean(a[0][a[0]!= -1])
+m2 = np.mean(a[1][a[1]!= -1])
+m3 = np.mean(a[2][a[2]!= -1])
+
+
+**** Normalize and output ****
+# version 2 & 1 folder, functions in bm_v5
+// collect
+ip = '20190305_lightconditions_c'
+ip = '2-crop'
+op = ['20190305_lightconditions_nhb', '20190305_lightconditions_nwp1', '20190305_lightconditions_nwp2']
+op = ['3.1-nhb', '3.2-nwp1', '3.3-nwp2']
+
+# pdt[0] - Under light1
+# pdt[0][0] - 1st img
+# pdt[0][0][0] - 1st block
+# pdt[0][0][0][0] - R value
+
+hbabpdt, hbabsdt = normCollect(ip, op[0], para, 0, .1, 200, (42, 3))   # hb
+wp1abpdt, wp1absdt = normCollect(ip, op[1], para, 1, .1, 240, (42, 3)) # wp1
+wp2abpdt, wp2absdt = normCollect(ip, op[2], para, 2, .1, 240, (42, 3)) # wp2
+origpdt, origsdt = normCollect(ip, '', para, 3, .1, 200, (42, 3))   # orig
+
+// Across block/Image-wise output
+
+nm = ['_patch_acrossBlock.csv','_spot_acrossBlock.csv']
+op = '4-dt/'
+algr = ['histogramBased', 'whitePatch1', 'whitePatch2']
+
+wrout(hbabpdt, hbabsdt, algr[0], nm, op)   # hb
+wrout(wp1abpdt, wp1absdt, algr[1], nm, op) # wp1
+wrout(wp2abpdt, wp2absdt, algr[2], nm, op) # wp2
+wrout(origpdt, origsdt, 'original', nm, op) # orig
+
+**** Distance ****
+// after norm
+# hb
+allDist = distanceAll('20190305_lightconditions_nhb', 3)
+array([[ -1,  -1, 140],
+       [ -1, 191,  -1],
+       [211, 209, 192],
+       [216, 209, 179],
+       [214, 202, 215],
+       [239, 212, 186],
+       [ -1,  -1, 159],
+       [161, 145, 144],
+       [ -1,  -1, 146],
+       [ -1,  -1, 160],
+       [ -1,  -1, 152],
+       [164, 153, 147]], dtype=int64)
+a = allDist.transpose(1, 0)
+m1 = np.mean(a[0][a[0]!= -1])
+m2 = np.mean(a[1][a[1]!= -1])
+m3 = np.mean(a[2][a[2]!= -1])
+
+# wp1
+allDist = distanceAll('20190305_lightconditions_nwp1', 3)
+array([[ -1,  -1, 291],
+       [ -1, 346,  -1],
+       [285, 341, 332],
+       [282, 337, 331],
+       [279, 334, 321],
+       [289, 335, 317],
+       [ -1,  -1, 297],
+       [261, 326, 310],
+       [ -1,  -1, 331],
+       [ -1,  -1, 336],
+       [ -1,  -1, 254],
+       [293, 342, 303]], dtype=int64)
+
+# wp2
+allDist = distanceAll('20190305_lightconditions_nwp2', 3)
+array([[ -1,  -1, 168],
+       [ -1, 251,  -1],
+       [251, 261, 236],
+       [256, 264, 220],
+       [247, 254, 251],
+       [268, 272, 215],
+       [ -1,  -1, 205],
+       [192, 207, 194],
+       [ -1,  -1, 183],
+       [ -1,  -1, 184],
+       [ -1,  -1, 189],
+       [226, 232, 190]], dtype=int64)
+
+
+**** Across image/light-wise output
+lbs = pd.read_csv("4-dt/labels.csv", header = None)
+lbs = np.array(lbs)
+lbs = lbs.transpose(1, 0)
+
+# orig
+dt = collectLw('2-crop', lbs, 2, 3) # v2
+op = '4-dt/original_lightWise.csv'
+wroutLw(dt, op)
+
+# hb
+dt = collectLw('3.1-nhb', lbs, 2, 3) # v2
+op = '4-dt/histogramBased_lightWise.csv'
+wroutLw(dt, op)
+
+# wp1
+dt = collectLw('3.2-nwp1', lbs, 2, 3) # v2
+op = '4-dt/whitePatch1_lightWise.csv'
+wroutLw(dt, op)
+
+# wp2
+dt = collectLw('3.3-nwp2', lbs, 2, 3) # v2
+op = '4-dt/whitePatch2_lightWise.csv'
+wroutLw(dt, op)
+
+
+

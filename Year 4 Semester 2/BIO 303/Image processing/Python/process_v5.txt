@@ -1,9 +1,10 @@
 # Remediate implemented. Gray & LAB thre, no display img - Apr 2 2019
+# Abandon counting in remediate - Apr 6 2019
+# Update remediate. Only based on LAB. Thre derived from local meanL - Apr 8 2019
+#		    Notice, remediate need to be re-applied when manipulating retrieved image
+#		    as imread/imwrite tend to noises back to the image
 # para: name - name of the image to be processed
 #	thre - threshold value
-#	thb/g_f - factor for border/glare removal (.01 suggested)
-#	fold - image display fold
-#	display - whether display img or not
 #
 # output: orig - original image called "name"
 #	  gray - gray scaled orig
@@ -12,7 +13,7 @@
 #	  warp - perspective trasformed chip
 #	  restr - version of warp with top-right corner being completely black
 #
-def process(name, thre, thbf, thgf):
+def process(name, thre):
 
 	# self-explanatory
 	def maskInvAdd(mask, img):
@@ -112,46 +113,64 @@ def process(name, thre, thbf, thgf):
 				break
 		return orig, gray, inner
 
-	# last step process, black-out glares and involved black borders	
-	def remediate(warp, thbf, thgf):
+	# last step process, black-out glares and involved black borders
+	# abandon count where thbf and thgf denote the fraction
+	# now they denote thresholding value
+	def remediate(warp):
 		mask = np.full_like(warp, 255)
-		graywarp = cv2.cvtColor(warp, cv2.COLOR_BGR2GRAY)
 		labwarp = cv2.cvtColor(warp, cv2.COLOR_BGR2LAB)
 		x, y, c = labwarp.shape
-		histlab = histogram(labwarp, 0, 0, 0, 0, 0, '', 0, 1, 0, 0)
 
-		grayhistdt = np.reshape(graywarp, (x*y))
-		histgray,bins = np.histogram(grayhistdt[grayhistdt != 0], 256, [0,256])
+		# decide local brightness, brighteset (LH) and darkest (LL)
+		meanLH = 0
+		meanLL = 256
+		bd = [ [[0,x/2],[0,y/2]], [[0,x/2],[y/2,y]], [[x/2,x],[0,y/2]], [[x/2,x],[y/2,y]] ]
+		for i in range(0, 4):
+			curbd = bd[i]
+			local = labwarp[int(curbd[0][0]):int(curbd[0][1]), int(curbd[1][0]):int(curbd[1][1])]
+			meanLH = max(meanLH, np.mean(local[:,:,0]))
+			meanLL = min(meanLL, np.mean(local[:,:,0]))
 
-		# derive threshold value for black border_gray scale
+		# derive proper glare and bordere threshold
 		thb = 0
-		bct = 0
-		for i in range(0, 255, 1):
-			if (bct >= thbf * x * y or i >= 60):
-				thb = i
-				break
-			bct = bct + histgray[i]
+		thg = 255
+		if (meanLL >= 80):
+			thb = (meanLL - 80) * .6
+		if (meanLH < 205):
+			thg = thg - (205 - meanLH)
+
+		# histogram count method, temporarily abandon
+		# histlab = histogram(labwarp, 0, 0, 0, 0, 0, '', 0, 1, 0, 0)
+		# grayhistdt = np.reshape(graywarp, (x*y))
+		# histgray,bins = np.histogram(grayhistdt[grayhistdt != 0], 256, [0,256])
+		# derive threshold value for black border_gray scale
+		# thb = 0
+		# bct = 0
+		# for i in range(0, 255, 1):
+		#	if (bct >= thbf * x * y): # or i >= 35):
+		#		thb = i
+		#		break
+		#	bct = bct + histgray[i]
 
 		# derive threshold value for glare_LAB space
-		thg = 0
-		gct = 0
-		for i in range(255, 0, -1):
-			if (gct >= thgf * x * y or i <= 240):
-				thg = i
-				break
-			gct = gct + histlab[i]
+		# thg = 0
+		# gct = 0
+		# for i in range(255, 0, -1):
+		#	if (gct >= thgf * x * y or i <= 240):
+		#		thg = i
+		#		break
+		#	gct = gct + histlab[i]
 
 		# thresholding
-		bordermask = (graywarp[:,:] >= thb).astype(np.uint8) # pixel gray value <= th, black-out
+		bordermask = (labwarp[:,:,0] >= thb).astype(np.uint8) # pixel gray value <= th, black-out
 		mask = mask * bordermask[:,:,None]
 		glaremask = (labwarp[:,:,0] <= thg).astype(np.uint8) # pixel L value > th, black-out
 		mask = mask * glaremask[:,:,None]
-
 		restr = maskInvAdd(mask, warp)
-		return restr, thb, thg, histgray, histlab
+		return restr
 		
 	orig, gray, inner = readin(name, thre)
 	chip = displayContour(inner, np.zeros_like(gray))
-	warp = persTransU(inner, orig, gray, chip) # v2
-	restr, thb, thg, histgray, histlab = remediate(warp, thbf, thgf)
+	warp = persTransU(inner, orig, gray, chip) # v3
+	restr = remediate(warp)
 	return orig, gray, inner, chip, warp, restr

@@ -20,6 +20,14 @@ def getPatch(img, i, j, para):
 para = [7, 6, 20, 27, 40, 30, 35, 30, 15, 25]
 os.chdir('wd/2018-19FYP/chip_v2/Benchmarking/20190305/version2')
 
+imgnms = ['20190305_lightconditions_c/light1/t2l1_20190305_07_bench_330lux_25min_AMP2.jpg',
+	  '20190305_lightconditions_c/light2/t1l2_20190305_07_bench_flash_6min_AMP2.jpg',
+	  '20190305_lightconditions_c/light3/t1l3_20190305_18_lighttray_900lux_1min_TET0.5.jpg',
+	  '20190305_lightconditions/light1/t2l1_20190305_07_bench_330lux_25min_AMP2.jpg',
+	  '20190305_lightconditions/light1/t1l1_20190305_18_bench_330lux_3min_TET0.5.jpg',
+	  '20190305_lightconditions/light2/t2l2_20190305_24_bench_flash_27min_AMP2.jpg',
+	  '20190305_lightconditions/light3/t1l3_20190305_18_lighttray_900lux_1min_TET0.5.jpg']
+
 
 **** Apr 1 ****
 img = cv2.imread('20190305_lightconditions_c/light1/t2l1_20190305_07_bench_330lux_25min_AMP2.jpg')
@@ -96,12 +104,6 @@ wroutImgWise(dt, op)
 **** Apr 2 ****
 // rm glare and border_process_v4
 # count from 0 and 255, left and right-ward .1*total many pixels, similar to wp2
-imgnms = ['20190305_lightconditions_c/light1/t2l1_20190305_07_bench_330lux_25min_AMP2.jpg',
-	  '20190305_lightconditions_c/light1/t2l1_20190305_27_bench_330lux_24min_TET0.5.jpg',
-	  '20190305_lightconditions_c/light2/t1l2_20190305_07_bench_flash_6min_AMP2.jpg',
-	  '20190305_lightconditions/light1/t2l1_20190305_07_bench_330lux_25min_AMP2.jpg',
-	  '20190305_lightconditions/light2/t2l2_20190305_24_bench_flash_27min_AMP2.jpg']
-
 warp = cv2.imread(imgnms[0])
 warp = cv2.imread(imgnms[1])
 warp = cv2.imread(imgnms[2])
@@ -115,9 +117,9 @@ plt.xlim([0,256])
 plt.show()
 
 # process integrate test
-orig, gray, inner, chip, warp, restr = process(imgnms[3], 100, .01, .01, .09) # v4 & persTrans_v3
-orig, gray, inner, chip, warp, restr = process(imgnms[3], 100, .018, .01) # v5 & persTrans_v2
-orig, gray, inner, chip, warp, restr = process(imgnms[4], 100, .018, .01) # v5 & persTrans_v2
+orig, gray, inner, chip, warp, restr = process(imgnms[3], 100, .01, .01, .09) # v4 & persTrans_v2
+orig, gray, inner, chip, warp, restr = process(imgnms[3], 100, .018, .01) # v5 & persTrans_v3
+orig, gray, inner, chip, warp, restr = process(imgnms[4], 100, .018, .01) # v5 & persTrans_v3
 
 // ** whole process benchmarking_v4 **
 // crop
@@ -134,22 +136,9 @@ os.chdir('wd/2018-19FYP/chip_v2/Benchmarking/20190305/version2/20190305_lightcon
 # either re-do again or simply copy from above
 error = crop('20190305_lightconditions_c', '20190305_lightconditions_n') # both v1&v2 crop
 
-// normalize and output
+// normalize and output_refer to Standard_procedure
 // ** blockwise
-ip = '20190305_lightconditions_c'
-op = ['20190305_lightconditions_nhb', '20190305_lightconditions_wp1', '20190305_lightconditions_wp2']
 
-algr = ['histogramBased','whitePatch1', 'whitePatch2']
-nm = ['_patch_blockWise.csv','_spot_blockWise.csv']
-op = '20190305_lightconditions_dt/'
-
-# pdt[0] - Under light1
-# pdt[0][0] - 1st img
-# pdt[0][0][0] - 1st block
-# pdt[0][0][0][0] - R value
-
-pdt, sdt = normCollect(ip, op[0], para, 0, .1, 200, (42, 3))
-wrout(pdt, sdt, algr[0], nm, op)
 
 // ** imgwise
 lbs = pd.read_csv("20190305_lightconditions_dt/labels.csv", header = None)
@@ -232,7 +221,7 @@ mkhist = histogram(res, 1, 1, 0, 0, 0, '', 1, 0, 1, 0) # v4
 a, b = dataMakeUp(hblwp, 10000)
 export(hblwp, '20190305_lightconditions_nhb_p_hist', 10000)
 
-// std procedure_bm_v5
+// std procedure_bm _v5
 # before norm
 clwp, clws, clwa = collectLightWise('20190305_lightconditions_c', lbs, 3, 3)
 export(clwp, '20190305_lightconditions_c_p_hist', 10000)
@@ -254,5 +243,354 @@ export(wp2lwp, '20190305_lightconditions_nwp2_p_hist', 10000)
 refer to Apr 2
 
 
+**** Apr 6 ****
+// evaluate remediate in process
+# no remediate
+orig, gray, inner, chip, warp1, restr = process(imgnms[4], 100, .018, .01) # v5 & persTrans_v3
+orig, gray, inner, chip, warp, restr = process(imgnms[3], 100, .018, .01) # v5 & persTrans_v3
+v = np.hstack((warp, restr))
+lab = cv2.cvtColor(v, cv2.COLOR_BGR2LAB)
+gray1 = cv2.cvtColor(warp1, cv2.COLOR_BGR2GRAY)
+gray = cv2.cvtColor(warp, cv2.COLOR_BGR2GRAY)
+hist = histogram(gray.ravel(), 1, 1, 0, 20, 0, '', 1, 0, 1, 0)
 
+restr, thb, thg, histgray, histlab = remediate(warp, .01, .01)
+restr1, thb, thg, histgray, histlab = remediate(warp1, .005, .01)
+
+# abandon counting remediate
+restr, thb, thg, histgray, histlab = remediate(warp, 40, 240)
+restr1, thb, thg, histgray, histlab = remediate(warp1, 40, 240)
+orig, gray, inner, chip, warp, restr = process(imgnms[3], 100, 40, 240) # v5 & persTrans_v3
+
+// improve histogram peak detection
+img = cv2.imread(imgnms[0])
+i1p5 = getPatch(img, 0, 5, para)
+hi1p5 = histogram(i1p5, 0, 0, 0, 0, 0, '', 1, 0, 1, 0)
+a = peak(hi1p5, 7)
+
+// mask patch to derive a rough distance between peaks
+def simpleCover(img, para, dr):
+	rw, cl, rst, cst, hd, vd, hdd, vdd, r, x = para
+	mask = np.zeros_like(img)
+	for i in range(0, rw):          # spot in row i
+		for j in range(0, cl):  #         col j
+			cr = cst + i*vd + (2*i+1)*r
+			cc = rst + j*hd + (2*j+1)*r
+			mask = cv2.circle(mask, (cc, cr), dr, (255, 255, 255), -1)
+	spot = maskInvAdd(mask, img)      # rough patch areas are black
+	show(spot, 1)
+	return spot
+spot = simpleCover(img, para, 5)
+p5 = getPatch(spot, 0, 5, para)
+
+// examine wp output to determine proper peak detection approach
+p5 = getPatch(warp, 0, 5, para)
+rp5 = getPatch(restr, 0, 5, para)
+hist = histogram(rp5, 0, 0, 0, 0, 0, '', 1, 0, 1, 0)
+
+def whitePatch1(block, standard):
+		cbk = np.copy(block)
+		cbk = cbk.transpose(2, 0, 1)
+		brightest = float(standard)
+		cpdt = []
+		csdt = []
+		for ch in range(0, 3): # for R/G/B channel
+			cbk[ch] = np.minimum(cbk[ch] * (brightest/cbk[ch].max()),255)
+		return cbk.transpose(1, 2, 0)
+
+def whitePatch2(block, threshold, standard):
+		cbk = np.copy(block)
+		cbk = cbk.transpose(2, 0, 1)
+		brightest = float(standard)
+		res = []
+		x, y, z = cbk.shape
+		th = threshold * y * z
+		for ch in range(0, 3):
+			h = np.bincount(cbk[ch].ravel(), minlength = 256)
+			sum = 0
+			max = 256
+			while (sum < int(th) & max > 1):
+				max = max - 1
+				sum = sum + h[max]
+			res.append(max)
+			cbk[ch] = np.minimum(cbk[ch] * (brightest/float(max)),255)
+			# hist = histogram(cbk[ch].ravel(), 1, 1, 0, 0, 0, '', 1, 0, 1, 0)
+		return cbk.transpose(1, 2, 0), res
+
+np5 = whitePatch1(rp5, 240)
+np5 = whitePatch2(rp5, .1, 240)
+hist = histogram(np5, 0, 0, 0, 0, 0, '', 1, 0, 1, 0)
+
+rp5 = rp5.transpose(2, 0, 1)
+cbk = np.copy(rp5)
+cbk = cbk.transpose(2, 0, 1)
+cbk[0] = np.minimum(cbk[0] * (float(240)/float(res[0])),255)
+np.bincount(cbk[0].ravel(), minlength = 256)
+np.bincount(rp5[0].ravel(), minlength = 256)
+hist = histogram(cbk[0].ravel(), 1, 1, 0, 0, 0, '', 1, 0, 1, 0)
+hist = histogram(rp5[0].ravel(), 1, 1, 0, 0, 0, '', 1, 0, 1, 0)
+a = a.transpose(1, 2, 0)
+rp5 = rp5.transpose(1, 2, 0)
+
+def collectBrightest(img, ch):
+	res = []
+	for i in range(0, rw):          # block in row i
+		for j in range(0, cl):  #          col j
+			x = hoffset + j*hdist + (2*j+1)*r # col no.
+			y = voffset + i*vdist + (2*i+1)*r # row no.
+			block = img[y-vdd: y+vdd, x-hdd: x+hdd]
+			res.append(max(block[:,:,ch].ravel()))
+	return res
+
+res = collectBrightest(restr, 1)
+show(lightAdjust(img, para, 1, .1, 240), 1)
+
+// evaluate new peak detection
+img = cv2.imread(imgnms[0])
+p5 = getPatch(img, 0, 5, para)
+a = peak(hist, 7, 165)
+hist, mj, mr = histogram(p5, 0, 0, 0, 0, 0, '', 1, 0, 1, 0, 7)
+hist, mj, mr = histogram(p5, 0, 0, 0, 0, 0, '', 0, 0, 0, 1, 7)
+
+# wrout histogram for examination_bm_v3
+
+// img for report
+img = cv2.imread(imgnms[1])
+b = spotMask(img, para, lbs[0], 2)
+
+
+**** Apr 7 ****
+// in 20190305_lightconditions_t subfolder of version2
+// output hist for cropped_bm_v3
+createFolders('20190305_lightconditions_c', '20190305_lightconditions_c_hist')
+hist('20190305_lightconditions_c', '20190305_lightconditions_c_hist', 0)
+
+// normalize with wp1 and output hist_bm_v5
+normCollect(ip, op[1], para, 1, .1, 240, (42, 3))
+createFolders('20190305_lightconditions_c', '20190305_lightconditions_nwp1_hist')
+hist('20190305_lightconditions_nwp1', '20190305_lightconditions_nwp1_hist', 0)
+
+// normalize with wp2 and output hist_bm_v5
+normCollect(ip, op[2], para, 2, .1, 240, (42, 3))
+createFolders('20190305_lightconditions_c', '20190305_lightconditions_nwp2_hist')
+hist('20190305_lightconditions_nwp2', '20190305_lightconditions_nwp2_hist', 0)
+
+// wp2 investigate
+img = cv2.imread('20190305_lightconditions_c/light1/t2l1_20190305_07_bench_330lux_25min_AMP2.jpg')
+norm = lightAdjust(img, para, 2, .1, 240) # v5
+
+# bugs in wp2
+rw, cl, hoffset, voffset, hdist, vdist, hdd, vdd, r, dr = para
+def collectBrightest(img, ch, threshold):
+	res = []
+	ct = []
+	for i in range(0, rw):          # block in row i
+		for j in range(0, cl):  #          col j
+			x = hoffset + j*hdist + (2*j+1)*r # col no.
+			y = voffset + i*vdist + (2*i+1)*r # row no.
+			block = img[y-vdd: y+vdd, x-hdd: x+hdd]
+			cbk = np.copy(block).transpose(2, 0, 1)
+			x, y, z = cbk.shape
+			th = threshold * y * z
+			h = np.bincount(cbk[ch].ravel(), minlength = 256)
+			ct.append(h)
+			cct = 0
+			mx = 256
+			while (cct < int(th)):
+				mx = mx - 1
+				cct = cct + h[mx]
+			res.append(mx)
+	return res, ct
+res, ct = collectBrightest(img, 0, .1)
+# terminated
+
+# hist check
+np1 = lightAdjust(img, para, 1, .1, 240) # wp1
+np2 = lightAdjust(img, para, 2, .1, 240) # wp2
+p1b5 = getPatch(np1, 0, 5, para)
+p2b5 = getPatch(np2, 0, 5, para)
+hist = histogram(p1b5, 0, 0, 0, 0, 0, '', 1, 0, 1, 0, 0)
+hist = histogram(p2b5, 0, 0, 0, 0, 0, '', 1, 0, 1, 0, 0)
+h = np.bincount(p2b5[:,:,0].ravel(), minlength = 256)
+
+# fresh image generate diff hist compared with stored???
+cv2.imwrite('a.jpg',img)
+a = cv2.imread('a.jpg')
+hist = histogram(img, 0, 0, 0, 0, 0, '', 1, 0, 1, 0, 0)
+histr = histogram(a, 0, 0, 0, 0, 0, '', 1, 0, 1, 0, 0)
+
+imgnm = ['20190305_lightconditions_c/light1/t2l1_20190305_07_bench_330lux_25min_AMP2.jpg',
+	 '20190305_lightconditions_c/light1/t2l1_20190305_27_bench_330lux_24min_TET0.5.jpg',
+	 '20190305_lightconditions_c/light2/t1l2_20190305_07_bench_flash_6min_AMP2.jpg',
+	 '20190305_lightconditions_c/light3/t1l3_20190305_43_lighttray_900lux_1min_LB.jpg']
+def exam(nm, choa):
+	img = cv2.imread(nm)
+	p1n = lightAdjust(img, para, choa, .1, 240) # fresh
+	b5 = getPatch(p1n, 0, 5, para)
+	cv2.imwrite('p1n.jpg',p1n)
+
+	p1nr = cv2.imread('p1n.jpg') # readin
+	b5r = getPatch(p1nr, 0, 5, para)
+
+	# histogram
+	hist = histogram(p1n, 0, 0, 0, 0, 0, '', 1, 0, 1, 0, 0)
+	histr = histogram(p1nr, 0, 0, 0, 0, 0, '', 1, 0, 1, 0, 0)
+
+	hist5 = histogram(b5, 0, 0, 0, 0, 0, '', 1, 0, 1, 0, 0)
+	hist5r = histogram(b5r, 0, 0, 0, 0, 0, '', 1, 0, 1, 0, 0)
+exam(imgnm[0], 1)
+# check terminated
+
+// go thru whole procedure
+refer to data
+inname = '20190305_lightconditions/0/t1l2_20190305_07_bench_flash_6min_AMP2.jpg'
+orig, gray, inner, chip, warp, restr = process(inname, 100, 40, 240)
+
+// confirm validity of peak detection for fresh wp1/2
+# wp1 fresh hist
+img = cv2.imread('20190305_lightconditions_c/light1/t2l1_20190305_07_bench_330lux_25min_AMP2.jpg')
+lightAdjust(img, para, 2, .1, 240, 0, 'hist') # v6
+
+# extremely many 255 pixels for b5 of 
+def whitePatch2(block, threshold, standard, ch):
+		cbk = np.copy(block).transpose(2, 0, 1)
+		brightest = float(standard)
+		x, y, z = cbk.shape
+		th = threshold * y * z
+		h = np.bincount(cbk[ch].ravel(), minlength = 256)
+		h[0:20] = 0
+		cct = 0
+		mx = 256
+		while (cct < int(th)):
+			mx = mx - 1
+			cct = cct + h[mx]
+		cbk[ch] = np.minimum(cbk[ch] * (brightest/float(mx)),255)
+		cbk = cbk.transpose(1, 2, 0)
+		hist = histogram(cbk, 0, 0, ch, 0, 0, '', 1, 0, 1, 0, 0)
+		# return cct, mx
+		
+b5 = getPatch(img, 0, 5, para)
+hist = histogram(b5, 0, 0, 0, 0, 0, '', 1, 0, 1, 0, 0)
+n = whitePatch2(b5, .1, 240, 0)
+
+cbk = np.copy(b5).transpose(2, 0, 1)
+h = np.bincount(cbk[0].ravel(), minlength = 256)
+cbk[0] = np.minimum(cbk[0] * (float(240)/float(192)),255)
+
+# all pixels above value a (a*factor == 255) would colapse at 255
+# remove 255 pixels when calcualting histogram
+
+lightAdjust(img, para, 2, .1, 240, 0, 'hist') # v6
+
+
+**** Apr 8 ****
+// further check correctness of wp1&2 hist peak. refer to bm_v4
+createFolders('20190305_lightconditions_c', 'wp1_histr')
+createFolders('20190305_lightconditions_c', 'wp2_histb')
+rw, cl, rst, cst, hd, vd, hdd, vdd, r, dr = para
+hist('20190305_lightconditions_c', 'wp1_histr', para, 1, .1, 240, 0) # wp1 R channel peak check
+hist('20190305_lightconditions_c', 'wp2_histb', para, 2, .1, 240, 2) # wp2 B channel peak check
+# light3 img present abnormal block (0,5)
+
+// border not removed, update process
+def remediate(warp):
+		mask = np.full_like(warp, 255)
+		labwarp = cv2.cvtColor(warp, cv2.COLOR_BGR2LAB)
+		x, y, c = labwarp.shape
+		meanL = np.mean(labwarp[:,:,0])
+		thb = 0
+		thg = 255
+
+		if (meanL >= 80):
+			thb = (meanL - 80) * .6
+		if (meanL < 205):
+			thg = thg - (205 - meanL)
+
+		# thresholding
+		bordermask = (labwarp[:,:,0] >= thb).astype(np.uint8)
+		mask = mask * bordermask[:,:,None]
+
+		glaremask = (labwarp[:,:,0] <= thg).astype(np.uint8)
+		mask = mask * glaremask[:,:,None]
+
+		restr = maskInvAdd(mask, warp)
+		intshow(restr)
+		return restr
+
+img = cv2.imread(imgnms[0])
+orig, gray, inner, chip, warp1, restr = process(imgnms[0], 100, 40, 240, .09) # v4 & persTrans_v2
+labw1 = cv2.cvtColor(warp1, cv2.COLOR_BGR2LAB)
+np.mean(labw1[:,:,0])
+restr = remediate(warp1)
+lab = cv2.cvtColor(restr, cv2.COLOR_BGR2LAB)
+hist = histogram(lab, 0, 0, 0, 0, 0, '', 1, 0, 1, 0, 0)
+
+imgnms = ['1-orig/light1/t2l1_20190305_07_bench_330lux_25min_AMP2.jpg',
+	  '1-orig/light2/t1l2_20190305_07_bench_flash_6min_AMP2.jpg',
+	  '1-orig/light2/t1l2_20190305_24_bench_flash_7min_AMP2.jpg',
+	  '1-orig/light3/t1l3_20190305_43_lighttray_900lux_1min_LB.jpg',]
+
+# update process v4 & v5. Remove large bulk of outlier
+orig, gray, inner, chip, warp1, restr = process(imgnms[0], 100, .09) # v4
+orig, gray, inner, chip, warp1, restr = process(imgnms[0], 100) # v5
+restr, l, h = remediate(warp1)
+b5 = getPatch(restr, 0, 5, para)
+hist, bins = np.histogram(b5[:,:,0], 256, [0,256])
+# success
+
+# store and retrieve
+imgnms = ['2-crop/light1/t2l1_20190305_07_bench_330lux_25min_AMP2.jpg',
+	  '2-crop/light2/t1l2_20190305_24_bench_flash_7min_AMP2.jpg',
+	  '2-crop/light3/t1l3_20190305_07_lighttray_900lux_1min_AMP2.jpg']
+
+img = cv2.imread(imgnms[0])
+b5 = getPatch(img, 0, 5, para)
+hist, bins = np.histogram(b5[:,:,0], 256, [0,256])
+# noises added by openCV, imread/imwrite
+# need to use remediate whenever accessing the data, otherwise, noises persist
+
+// update histogram
+img = cv2.imread(imgnms[0])
+img = remediate(img)   # clean up
+b20 = getPatch(img, 3, 2, para)
+
+def whitePatch2(block, threshold, standard, ch):
+		cbk = np.copy(block).transpose(2, 0, 1)
+		x, y, z = cbk.shape
+		th = threshold * y * z
+		h = np.bincount(cbk[ch].ravel(), minlength = 256)
+		h[0] = 0
+		h[255] = 0
+		cct = 0
+		mx = 256
+		while (cct < int(th)):
+			mx = mx - 1
+			cct = cct + h[mx]
+		cbk[ch] = np.minimum(cbk[ch] * (float(standard)/float(mx)),255)
+
+		# peak detection
+		cbk = cbk.transpose(1, 2, 0)
+		chist, intenw, intens = histogram(cbk, 0, 0, ch, 0, 0, '', 1, 0, 1, 0, 7) # v5
+n = whitePatch2(b20, .1, 240, 2)
+
+# mass output
+img = cv2.imread(imgnms[0])
+lightAdjust(img, para, 2, .1, 240, 2, 'hist_.01')
+
+createFolders('1-orig', 'hist_no_ol_rm')
+rw, cl, rst, cst, hd, vd, hdd, vdd, r, dr = para
+hist('2-crop', 'hist_no_ol_rm', para, 2, .1, 240, 0)
+
+img = cv2.imread(imgnms[1])
+img = remediate(img)   # clean up
+b5 = getPatch(img, 0, 5, para)
+
+// output block histogram for each image
+hist('2-crop', 'hist_b5_wp2_r', para, 2, .1, 240, 0) # wp2
+hist('2-crop', 'hist_b5_wp1_b', para, 1, .1, 240, 2) # wp2
+hist('2-crop', 'hist_b5_hb_g', para, 0, .1, 240, 1) # wp2
+
+// norm
+img = cv2.imread(imgnms[0])
+a, p, s = lightAdjust(img, para, 0, .1, 200)
 
