@@ -13,6 +13,8 @@ def persTransU(chipct, orig, gray, fold, chip):
 	def show(img, fold):
 		rsz = cv2.resize(img, None, fx = fold, fy = fold)
 		cv2.imshow('img',rsz)
+		if cv2.waitKey(0) & 0xFF == ord('a'):
+			return
 
 	# calculate the slope of the line defined by two given points
 	def slope(p1, p2):
@@ -133,7 +135,6 @@ def persTransU(chipct, orig, gray, fold, chip):
 	#	  chipcrr - a list of three points including the absent one from chipcrj with its two adjacencies
 	#
 	def cornerF(gray, chipct, fold, chip):
-
 		# find corner of major portion of the chip
 		hold = np.zeros_like(gray)
 		chipcrj, hold = apprf(chipct, fold, 0.05, hold)
@@ -143,15 +144,11 @@ def persTransU(chipct, orig, gray, fold, chip):
 		chipmj = np.zeros_like(gray)
 		chipmj = cv2.drawContours(chipmj, [contours[0]], -1, (255, 255, 255), -1)
 		show(chipmj, fold)
-		if cv2.waitKey(0) & 0xFF == ord('a'):
-			return
 		cv2.imwrite('chipmj.jpg', chipmj)
 
 		# display the rest of the chip
 		ohf = otherHf(chipmj, chip)
 		show(ohf, fold)
-		if cv2.waitKey(0) & 0xFF == ord('a'):
-			return
 		cv2.imwrite('ohf.jpg', ohf)
 
 		# find the minor chip area (a triangle) - largest area among rest of the chip
@@ -160,8 +157,6 @@ def persTransU(chipct, orig, gray, fold, chip):
 		chipmr = np.zeros_like(gray)
 		chipmr = cv2.drawContours(chipmr, [c], -1, (255, 255, 255), -1)
 		show(chipmr, fold)
-		if cv2.waitKey(0) & 0xFF == ord('a'):
-			return
 		cv2.imwrite('chipmr.jpg', chipmr) 
 
 		# find corner of minor chip area
@@ -182,6 +177,5 @@ def persTransU(chipct, orig, gray, fold, chip):
 	M = cv2.getPerspectiveTransform(rect, dst)	     # transformation matrix
 	warped = cv2.warpPerspective(orig, M, (leng, leng))  # transformed chip
 	show(warped, 1)
-	if cv2.waitKey(0) & 0xFF == ord('a'):
-		return
+	
 	return warped

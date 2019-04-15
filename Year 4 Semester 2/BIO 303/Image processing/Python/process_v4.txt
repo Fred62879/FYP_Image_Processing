@@ -93,7 +93,8 @@ def process(name, thre, fold):
 			return 0, 0
 		# black-out areas outside outer to zoomIn
 		zoomIn = black(ct, outer, fold, gray)
-
+		show(zoomIn, fold)
+		cv2.imwrite('zoom.jpg',zoomIn)
 		# only contours within outer will be considered in this case
 		sortedContour = findCountour(zoomIn, thre, fold)
 		inner = sortedContour[len(sortedContour) - 2]
@@ -118,6 +119,7 @@ def process(name, thre, fold):
 		while(i >= 1):
 			outer = sortedContour[i]
 			img = displayContour(outer, np.zeros_like(gray), fold)
+			cv2.imwrite('all.jpg',img)
 			reach, inner = check(outer, thre, fold, gray)
 			if (reach == 0):
 				i = i - 1
@@ -182,6 +184,8 @@ def process(name, thre, fold):
 		
 	orig, gray, inner = readin(name, thre, fold)
 	chip = displayContour(inner, np.zeros_like(gray), fold)
+	cv2.imwrite('inner.jpg',chip)
 	warp = persTransU(inner, orig, gray, .1, chip) # v2
 	restr = remediate(warp)
 	return orig, gray, inner, chip, warp, restr
+

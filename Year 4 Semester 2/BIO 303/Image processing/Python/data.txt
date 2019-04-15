@@ -4,6 +4,7 @@
 // same order for both version1 & 2 folder
 error = crop('20190305_lightconditions', '20190305_lightconditions_c')
 error = crop('1-orig', '2-crop')
+error = crop('1-orig_tc', '2-crop')
 
 **** Distance ****
 # version 1 folder
@@ -116,6 +117,219 @@ array([[ -1,  -1, 168],
        [226, 232, 190]], dtype=int64)
 
 
+**** MAD (ANOVA) patch ****
+// (I) Across blocks/image-wise
+(i) orig
+resog = madIw('2-crop')
+ans = meanMadIw(resog, 3)
+array([[15.77603599, 18.94157005, 17.9505642 ],
+       [21.40009252, 26.31595014, 24.53527582],
+       [13.65092802, 18.53828078, 15.54710106]])
+
+(ii) nhb
+reshb = madIw('3.1-nhb')
+ans = meanMadIw(reshb, 3)
+array([[16.03742379, 19.48323779, 18.33668594],
+       [14.29859919, 19.28070853, 16.89166095],
+       [12.77818903, 17.69569099, 15.31470016]])
+
+(iii) wp1
+reswp1 = madIw('3.2-nwp1')
+ans = meanMadIw(reswp1, 3)
+array([[21.19678287, 25.84121142, 24.19229863],
+       [19.78622527, 24.83428502, 22.47559717],
+       [13.88153331, 18.19833515, 17.91298096]])
+
+(iv) wp2
+reswp2 = madIw('3.3-nwp2')
+ans = meanMadIw(reswp2, 3)
+array([[24.14760595, 29.17311749, 27.03523667],
+       [18.40820952, 24.44079479, 21.60297098],
+       [14.25287556, 18.68282643, 18.3814091 ]])
+
+(v) blur
+array([[ 8.78226099,  9.27382231,  8.6533762 ],
+       [16.90466783, 18.15084567, 18.39543023],
+       [ 5.91858466,  6.34206648,  5.30953132]])
+
+array([[7.54625701, 8.45748867, 8.04007971],
+       [5.59036585, 6.7672144 , 6.45235757],
+       [4.18016927, 4.90651075, 4.62458116]])
+
+array([[11.76287409, 12.93048665, 12.55186365],
+       [12.8932124 , 13.75839731, 13.54694135],
+       [ 4.87746795,  5.24358118,  5.76290795]])
+
+array([[11.7190995 , 12.90133076, 12.20369095],
+       [ 7.24700145,  8.76689906,  8.44837957],
+       [ 4.53471578,  5.15234396,  5.42496304]])
+
+
+// (II) Across image/light-wise image gathering
+(i) orig
+clwp, clws, clwa = imgCollectLightWise('2-crop', lbs, 3, 3, 20, 0)
+res = madLw(clwp, 3)
+array([[13.67094243, 13.41687449, 13.45071233],
+       [18.37338358, 19.39401257, 19.78289157],
+       [ 7.11816398,  7.31839385,  6.60508945]])
+
+(ii) hb
+hblwp, hblws, hblwa = collectLightWise('3.1-nhb', lbs, 3, 3, 20, 0)
+res = madLw(hblwp, 3)
+array([[10.81007598, 11.25721145, 10.90809971],
+       [ 8.09259486,  8.68595871,  8.75779826],
+       [ 5.48437052,  5.86154844,  5.48781242]])
+
+(iii) wp1
+wp1lwp, wp1lws, wp1lwa = collectLightWise('3.2-nwp1', lbs, 3, 3, 20, 0)
+res = madLw(wp1lwp, 3)
+array([[15.11370438, 15.76355049, 15.54356509],
+       [15.7978871 , 16.67489139, 16.76886683],
+       [ 6.66895184,  6.25958819,  7.75881824]])
+
+(iv) wp2
+wp2lwp, wp2lws, wp2lwa = collectLightWise('3.3-nwp2', lbs, 3, 3, 20, 0)
+res = madLw(wp2lwp, 3)
+array([[16.245993  , 16.79415018, 16.21188938],
+       [11.00674129, 11.79046323, 11.8814575 ],
+       [ 6.45780652,  6.28866446,  7.42771955]])
+
+
+// (III) Across light
+(i) orig
+ans = madAl(clwp, 3)
+array([26.491351  , 29.69778441, 21.28309645])
+
+(ii) hb
+ans = madAl(hblwp, 3)
+array([7.69008876, 8.17972069, 7.97018644])
+
+(iii) wp1
+ans = madAl(wp1lwp, 3)
+array([19.28128027, 19.48409878, 18.94375747])
+
+(iv) wp2
+ans = madAl(wp2lwp, 3)
+array([10.86573584, 11.21923596, 11.53536523])
+
+(v) ANOVA
+export(clwp, '4-dt', 10000)
+export(hblwp, '4-dt', 10000)
+export(wp1lwp, '4-dt', 10000)
+export(wp2lwp, '4-dt', 10000)
+
+
+**** MAD spot ****
+// (I) Spot collection
+(i) orig
+clwp, clws, clwa = imgCollectLightWise('2-crop', lbs, 3, 3, 20, 12)
+sfclws = shuffleSpot(clws)
+cv2.imwrite('origsl1.jpg', clws[0][0][0])
+
+(ii) hb
+hblwp, hblws, hblwa = imgCollectLightWise('3.1-nhb', lbs, 3, 3, 20, 12)
+sfhblws = shuffleSpot(hblws)
+cv2.imwrite('hbsl1.jpg', hblws[0][0][0])
+
+(iii) wp1
+wp1lwp, wp1lws, wp1lwa = imgCollectLightWise('3.2-nwp1', lbs, 3, 3, 20, 12)
+sfwp1lws = shuffleSpot(wp1lws)
+cv2.imwrite('wp1sl1.jpg', wp1lws[0][0][0])
+
+(iv) wp2
+wp2lwp, wp2lws, wp2lwa = imgCollectLightWise('3.3-nwp2', lbs, 3, 3, 20, 12)
+sfwp2lws = shuffleSpot(wp2lws)
+cv2.imwrite('wp2sl1.jpg', wp2lws[0][0][0])
+
+
+// (II) Across blocks/image-wise
+def tool(lws, nlb, nlt, level):
+	ans = []
+	for i in range(0, nlb):
+		if (level == 0):
+			iwsclb = madIw(lws[i])
+			ans.append(meanMadIw(iwsclb, nlt))
+		elif (level == 1):
+			ans.append(madLw(lws[i], 3))
+		else:
+			ans.append(madAl(lws[i], 3))
+	return ans
+
+(i) orig
+ans = tool(clws, 3, 3, 0)
+
+
+(ii) hb
+ans = tool(hblws, 3, 3, 0)
+
+
+(iii) wp1
+ans = tool(wp1lws, 3, 3, 0)
+
+
+(iv) wp2
+ans = tool(wp2lws, 3, 3, 0)
+
+
+// (II) Across image/light-wise
+(i) orig
+ans = tool(clws, 3, 3, 1)
+
+
+(ii) hb
+ans = tool(hblws, 3, 3, 1)
+
+
+(iii) wp1
+ans = tool(wp1lws, 3, 3, 1)
+
+
+(iv) wp2
+ans = tool(wp2lws, 3, 3, 1)
+
+
+
+// (III) Across light
+(i) orig
+ans = tool(clws, 3, 3, 2)
+
+
+(ii) hb
+ans = tool(hblws, 3, 3, 2)
+
+
+(iii) wp1
+ans = tool(wp1lws, 3, 3, 2)
+
+
+(iv) wp2
+ans = tool(wp2lws, 3, 3, 2)
+
+
+(v) ANOVA
+export(clws[0], '4-dt', 1000)
+
+
+**** Spot Distinctness ****
+# Single image
+hcol = prepareIw(sfclws, 0, 0, 3, 0)
+hcol = prepareIw(sfhblws, 0, 0, 3, 0)
+
+# light-wise
+hcol = prepareLw(clws, 0, 3, 0)
+
+# across-light
+hcol = prepareAl(sfclws, 3, 0)
+
+# draw
+draw(hcol, .5)
+
+
+
+**** Interval derivation ****
+
+
+
 **** Across image/light-wise output
 lbs = pd.read_csv("4-dt/labels.csv", header = None)
 lbs = np.array(lbs)
@@ -142,4 +356,6 @@ op = '4-dt/whitePatch2_lightWise.csv'
 wroutLw(dt, op)
 
 
-
+**** Test image output
+nhbsdt = testImgDataOut('1-orig_tc','3.1-nhb', para, 0, .1, 200) 
+wrout(nhbsdt, '4-dt/histogramBased_spotData.csv')

@@ -55,7 +55,7 @@ dthist = histogram(dt, 1, 0, 0, 0, '', 1, 1, 0) # plot
 lbs = np.full((4, 42), np.array(label))
  
 # readin from csv
-lbs = pd.read_csv("20190305_lightconditions_dt/labels.csv", header = None)
+lbs = pd.read_csv("4-dt/labels.csv", header = None)
 lbs = np.array(lbs)
 lbs = lbs.transpose(1, 0)
 
@@ -223,20 +223,20 @@ export(hblwp, '20190305_lightconditions_nhb_p_hist', 10000)
 
 // std procedure_bm _v5
 # before norm
-clwp, clws, clwa = collectLightWise('20190305_lightconditions_c', lbs, 3, 3)
-export(clwp, '20190305_lightconditions_c_p_hist', 10000)
+clwp, clws, clwa = imgCollectLightWise('20190305_lightconditions_c', lbs, 3, 3)
+export(clwp, '4-dt', 10000)
 
 # hb
-hblwp, hblws, hblwa = collectLightWise('20190305_lightconditions_nhb', lbs, 3, 3)
-export(hblwp, '20190305_lightconditions_nhb_p_hist', 10000)
+hblwp, hblws, hblwa = imgCollectLightWise('20190305_lightconditions_nhb', lbs, 3, 3)
+export(hblwp, '4-dt', 10000)
 
 # wp1
-wp1lwp, wp1lws, wp1lwa = collectLightWise('20190305_lightconditions_nwp1', lbs, 3, 3)
+wp1lwp, wp1lws, wp1lwa = imgCollectLightWise('20190305_lightconditions_nwp1', lbs, 3, 3)
 export(wp1lwp, '20190305_lightconditions_nwp1_p_hist', 10000)
 
 # wp2
-wp2lwp, wp2lws, wp2lwa = collectLightWise('20190305_lightconditions_nwp2', lbs, 3, 3)
-export(wp2lwp, '20190305_lightconditions_nwp2_p_hist', 10000)
+wp2lwp, wp2lws, wp2lwa = imgCollectLightWise('4-dt', lbs, 3, 3)
+export(wp2lwp, '4-dt', 10000)
 
 
 // regenerate c
@@ -593,4 +593,214 @@ hist('2-crop', 'hist_b5_hb_g', para, 0, .1, 240, 1) # wp2
 // norm
 img = cv2.imread(imgnms[0])
 a, p, s = lightAdjust(img, para, 0, .1, 200)
+
+
+**** Apr 9 ****
+// peak data poor quality for wp1 & 2
+img = cv2.imread('2-crop/light1/t1l1_20190305_18_bench_330lux_3min_TET0.5.jpg')
+norm = lightAdjust(img, para, 1, .1, 240, 0, 'tmp') # v7
+# peak detected without significant errors
+# lightAdjust_v5, peak detection without transpose current block back
+
+// re-examine
+wp1abpdt, wp1absdt = normCollect('tmp2', 'tmp3', para, 1, .1, 240, (42, 3)) # wp1
+norm = lightAdjust(img, para, 2, .1, 240, 2, 'tmp') # wp2_v7
+wp1abpdt, wp1absdt = normCollect('tmp2', 'tmp3', para, 2, .1, 240, (42, 3)) # wp2
+
+# change image
+img = cv2.imread('2-crop/light2/t1l2_20190305_07_bench_flash_6min_AMP2.jpg')
+wp2abpdt, wp2absdt = normCollect('tmp2', 'tmp3', para, 2, .1, 240, (42, 3)) # wp2
+norm = lightAdjust(img, para, 2, .1, 240, 2, 'tmp') # wp2_v7
+
+wp1abpdt, wp2absdt = normCollect('tmp2', 'tmp3', para, 1, .1, 240, (42, 3)) # wp1
+norm = lightAdjust(img, para, 1, .1, 240, 1, 'tmp') # wp1_v7
+
+img = cv2.imread('2-crop/light3/t1l3_20190305_07_lighttray_900lux_1min_AMP2.jpg')
+wp2abpdt, wp2absdt = normCollect('tmp2', 'tmp3', para, 2, .1, 240, (42, 3)) # wp2
+norm = lightAdjust(img, para, 2, .1, 240, 2, 'tmp') # wp2_v7
+# terminated
+
+// for img-wise/across block uniformity, mask spot and check variation
+nms = ['3.2-nwp1/light2/t1l2_20190305_07_bench_flash_6min_AMP2.jpg',
+       '3.1-nhb/light2/t1l2_20190305_07_bench_flash_6min_AMP2.jpg',
+       '3.3-nwp2/light2/t1l2_20190305_07_bench_flash_6min_AMP2.jpg',
+       '2-crop/light2/t1l2_20190305_07_bench_flash_6min_AMP2.jpg']
+
+nms = ['3.2-nwp1/light1/t1l1_20190305_18_bench_330lux_3min_TET0.5.jpg',
+       '3.1-nhb/light1/t1l1_20190305_18_bench_330lux_3min_TET0.5.jpg',
+       '3.3-nwp2/light1/t1l1_20190305_18_bench_330lux_3min_TET0.5.jpg',
+       '2-crop/light1/t1l1_20190305_18_bench_330lux_3min_TET0.5.jpg']
+
+def mad(dt):
+	med = np.median(dt)
+	res = abs(dt - med)
+	return sum(res) / len(dt)
+
+def test(i, r):
+	res = []
+	img = cv2.imread(nms[i])
+	rimg = remediate(img)
+	
+	pimg = simpleCover(rimg, para, r)
+	pimg = pimg[12:420,:]
+	hist = histogram(pimg, 0, 0, 0, 0, 0, '', 1, 0, 1, 0, 0)
+	x, y, z = img.shape
+	dt = np.reshape(img, (x*y, z))
+	for ch in range(0, 3):
+		cdt = dt[:, ch]
+		cdt = cdt[np.logical_and(cdt != 0, cdt != 255)]
+		res.append(mad(cdt))
+	return res
+test(0, 0)
+
+// mass, refer to bm_v5
+
+
+**** Apr 10 ****
+// smooth for wp2
+	def remediate(warp):
+		mask = np.full_like(warp, 255)
+		labwarp = cv2.cvtColor(warp, cv2.COLOR_BGR2LAB)
+		x, y, c = labwarp.shape
+
+		# decide local brightness, brighteset (LH) and darkest (LL)
+		meanLH = 0
+		meanLL = 256
+		bd = [ [[0,x/2],[0,y/2]], [[0,x/2],[y/2,y]], [[x/2,x],[0,y/2]], [[x/2,x],[y/2,y]] ]
+		for i in range(0, 4):
+			curbd = bd[i]
+			local = labwarp[int(curbd[0][0]):int(curbd[0][1]), int(curbd[1][0]):int(curbd[1][1])]
+			meanLH = max(meanLH, np.mean(local[:,:,0]))
+			meanLL = min(meanLL, np.mean(local[:,:,0]))
+
+		# derive proper glare and bordere threshold
+		thb = 0
+		thg = 255
+		if (meanLL >= 80):
+			thb = (meanLL - 80) * .6
+		if (meanLH < 205):
+			thg = thg - (205 - meanLH)
+
+		# thresholding
+		bordermask = (labwarp[:,:,0] >= thb).astype(np.uint8) # pixel gray value <= th, black-out
+		mask = mask * bordermask[:,:,None]
+		glaremask = (labwarp[:,:,0] <= thg).astype(np.uint8) # pixel L value > th, black-out
+		mask = mask * glaremask[:,:,None]
+		return mask
+
+img = cv2.imread(nms[2])
+rimg = remediate(img)
+rimg = rimg[12:420,:]
+
+blur = cv2.bilateralFilter(rimg,9,75,75)
+blur = cv2.blur(rimg,(10, 10))
+
+pimg = simpleCover(rimg, para, 20)
+blrimg = simpleCover(blur, para, 20)
+hist = histogram(pimg, 0, 0, 0, 0, 0, '', 1, 0, 1, 0, 0)
+histr = histogram(blrimg, 0, 0, 0, 0, 0, '', 1, 0, 1, 0, 0)
+
+a = pimg[:,:,0]
+ret,thresh1 = cv2.threshold(a, 200,255,cv2.THRESH_BINARY)
+# chip texture present as major reason for wp2 light 1 high mad
+
+def test(i, r):
+	res = []
+	img = cv2.imread(nms[i])
+	mask = remediate(img)
+	blur = cv2.bilateralFilter(img,9,75,75)
+	# blur = cv2.blur(img,(10, 10))
+
+	fimg = simpleCover(blur, para, r)
+	fimg = maskInvAdd(mask, fimg)
+	fimg = fimg[12:420,:]
+	x, y, z = fimg.shape
+	dt = np.reshape(fimg, (x*y, z))
+	for ch in range(0, 3):
+		cdt = dt[:, ch]
+		cdt = cdt[np.logical_and(cdt != 0, cdt != 255)]
+		hist = histogram(cdt, 1, 1, 0, 0, 0, '', 1, 0, 1, 0, 0)
+		res.append(mad(cdt))
+	return fimg, res
+fimg, res = test(2, 20)
+
+// spot uniformity
+clwp1, clws1, clwa1 = imgCollectLightWise('tmp', lbs, 3, 3, 20, 12)
+img1 = clws1[0][0][0]
+img2 = clws1[0][1][0]
+img3 = clws1[0][2][0]
+hist = histogram(img1, 0, 0, 0, 0, 0, '', 1, 0, 1, 0, 0)
+
+img11 = clws1[0][0][0]
+img21 = clws1[1][0][0]
+hist = histogram(img11, 0, 0, 0, 0, 0, '', 1, 0, 1, 0, 0)
+
+a = shuffleSpot(clws)
+
+a = hblws[0]
+res, len = dataMakeUp(a, 1000)
+nimg, x, y, z = a[0].shape
+dt = np.reshape(a[0], (nimg*x*y, z))
+dt = dt[(dt != 0).all(axis = (1))]
+orighist = histogram(dt, 1, 0, 0, 0, 0, '', 1, 0, 1, 0, 7)
+res = dataMakeupIndivd(orighist, 1000)
+
+
+**** Apr 11 ****
+// overlay histograms for all three labels
+img1 = clws[0][0][0]
+img2 = clws[1][0][0]
+img3 = clws[2][0][0]
+img = [img1, img2, img3]
+
+inname = '1-orig_tc/light1/t1l1_10_bench_3min_LB.jpg'
+inname = '1-orig_tc/light1/t1l1_21_bench_2min_LB.jpg'
+inname = '1-orig/light3/t1l3_20190305_18_lighttray_900lux_1min_TET0.5.jpg'
+
+orig, gray, inner, chip, warp, restr = process(inname, 100, .3) # v5
+orig, gray, inner, chip, warp, restr = process(inname, 100, .1)
+
+
+**** Apr 14 ****
+// simulate overlay histogram
+a = np.repeat(0, 256)
+e = np.repeat(0, 256)
+f = np.repeat(0, 256)
+
+b = np.array([3,5,2,7,8,13,15,18,21,29,32,28,29,27,21,24,20,17,14,11,4,5,7])
+c = np.array([8,13,15,18,21,29,38,42,51,59,67,70,55,49,40,32,28,29,27,21,24,20,17,14,11,4,5,7])
+d = np.array([2,7,8,13,15,29,32,38,43,47,51,39,37,29,27,21,24,20,17,14,11,23,7])
+
+a[13:36] = b
+e[24:52] = c
+f[44:67] = d
+
+hcol = [a,e,f]
+
+hist1 = np.array([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,    0,    0,    0,    0,    3,    3,    5,    7,
+         13, 16, 17, 26, 9, 13, 14, 16, 18, 16, 10, 9, 7, 8, 15, 19, 14, 15, 7, 12, 9, 14,
+         17, 9, 19, 12, 14, 14, 17, 22, 21, 25, 28, 31, 39, 49, 57, 70, 87, 118, 121, 154, 164, 176,
+        245,  239,  292,  343,  323,  391,  419,  512,  504,  580,  667,
+        712,  722,  786,  814,  794,  857,  879,  936,  906,  947, 1092,
+       1087, 1178, 1229, 1276, 1263, 1329, 1397, 1329, 1399, 1374, 1350,
+       1281, 1272, 1272, 1256, 1190, 1245, 1217, 1177, 1193, 1186, 1224,
+       1142, 1112, 1126, 1086, 1062, 1050, 1043, 1026, 1127, 1175, 1250,
+       1466, 1706, 1989, 2320, 2509, 2933, 3272, 3551, 4072, 4638, 4944,
+       5367, 5662, 5946, 5767, 5769, 5300, 4985, 4504, 4144, 3862, 3678,
+       3309, 2929, 2731, 2485, 2194, 2008, 1836, 1578, 1430, 1249, 1172,
+        955,  854,  749,  575,  556,  474,  423,  345,  326,  276,  259,
+        250,  181,  170,  143,  120,  103,  101,   78,   72,   52,   57,
+         54,   51,   43,   29,   35,   24,   14,   13,    9,   13,    5,
+          2,    1,    2,    3,    7,    3,    4,    1,    2,    0,    1,
+          0,    0,    1,    1,    0,    0,    0,    0,    0,    0,    0,
+          0,    0,    0,    0,    0,    0,    0,    0,    0,    0,    0,
+          0,    0,    0,    0,    0,    0,    0,    0,    0,    0,    0,
+          0,    0,    0,    0,    0,    0,    0,    0,    0,    0,    0,
+          0,    0,    0], dtype=int32)
+
+def interval(histCol):
+	res = [[],[],[]]
+	for i in range(0, 3):
+		if (i == 0):
+			res[0].append
 

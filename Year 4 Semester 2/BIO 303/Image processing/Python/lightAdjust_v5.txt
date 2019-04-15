@@ -83,7 +83,7 @@ def lightAdjust(img, para, choa, threshold, standard):
 			cbk[ch] = np.minimum(cbk[ch] * (float(standard)/float(cbk[ch].max())),255)
 
 			# extract data
-			chist, intenw, intens = histogram(cbk, 0, 0, ch, 0, 0, '', 0, 0, 0, 1, 7) # v5
+			chist, intenw, intens = histogram(cbk.transpose(1, 2, 0), 0, 0, ch, 0, 0, '', 0, 0, 0, 1, 7) # v5
 			cpdt.append(intenw)
 			csdt.append(intens)
 		pdt.append(np.array(cpdt))
@@ -109,7 +109,7 @@ def lightAdjust(img, para, choa, threshold, standard):
 			cbk[ch] = np.minimum(cbk[ch] * (float(standard)/float(mx)),255)
 
 			# extract data
-			chist, intenw, intens = histogram(cbk, 0, 0, ch, 0, 0, '', 0, 0, 0, 1, 7) # v5
+			chist, intenw, intens = histogram(cbk.transpose(1, 2, 0), 0, 0, ch, 0, 0, '', 0, 0, 0, 1, 7) # v5
 			cpdt.append(intenw)
 			csdt.append(intens)
 		pdt.append(np.array(cpdt))
